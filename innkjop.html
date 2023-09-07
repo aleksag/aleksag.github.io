@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="no">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
             text-align: center;
             margin: 20px;
         }
+
         .container {
             max-width: 600px;
             margin: 0 auto;
@@ -18,6 +20,7 @@
             border-radius: 10px;
             background-color: #f9f9f9;
         }
+
         .input-field {
             margin-bottom: 10px;
             padding: 10px;
@@ -26,42 +29,50 @@
             border: 1px solid #ccc;
             border-radius: 5px;
         }
+
         .result {
             font-weight: bold;
             margin-top: 10px;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>Kjøpskalkulator</h1>
-        <label for="kjopesum">Kjøpesum:</label>
-        <input type="number" id="kjopesum" class="input-field" step="0.01" required><br>
-        
-        <label for="moms">Moms (%):</label>
-        <input type="number" id="moms" class="input-field" step="0.01" value="25" required><br>
-        
-        <label for="aag">AAG:</label>
-        <input type="number" id="aag" class="input-field" step="0.01" value="14.1" required><br>
-        
-        <label for="skatteprosent">Skatteprosent (%):</label>
-        <input type="number" id="skatteprosent" class="input-field" step="0.01" value="42" required><br>
-        
-        <button onclick="beregn()">Beregn</button>
-        
+        <form onsubmit="return false;">
+            <label for="kjopesum">Kjøpesum:</label>
+            <input type="number" id="kjopesum" class="input-field" step="0.01" required><br>
+
+            <label for="moms">Moms (%):</label>
+            <input type="number" id="moms" class="input-field" step="0.01" value="25" required><br>
+
+            <label for="aag">AGA (Arbeidsgiveravgift):</label>
+            <input type="number" id="aag" class="input-field" step="0.01" value="14.1" required><br>
+
+            <label for="skatteprosent">Skatteprosent (%):</label>
+            <input type="number" id="skatteprosent" class="input-field" step="0.01" value="42" required><br>
+
+            <button onclick="beregn()">Beregn</button>
+        </form>
         <div class="result" id="resultat"></div>
     </div>
 
     <script>
+        document.getElementById('kjopesum').addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                beregn();
+            }
+        });
         function beregn() {
             var kjopesum = parseFloat(document.getElementById('kjopesum').value);
             var moms = parseFloat(document.getElementById('moms').value);
             var aag = parseFloat(document.getElementById('aag').value);
             var skatteprosent = parseFloat(document.getElementById('skatteprosent').value);
 
-            var totalMoms = (kjopesum/100)*moms;
-            var totalAAG = ((kjopesum-totalMoms)/100)*aag;
-            var totalSkatt = ((kjopesum-totalMoms-totalAAG)/100)*skatteprosent;
+            var totalMoms = (kjopesum / 100) * moms;
+            var totalAAG = ((kjopesum - totalMoms) / 100) * aag;
+            var totalSkatt = ((kjopesum - totalMoms - totalAAG) / 100) * skatteprosent;
 
             var totalSum = kjopesum - totalAAG - totalMoms - totalSkatt;
 
@@ -76,4 +87,5 @@
         }
     </script>
 </body>
+
 </html>
