@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+        }
+        .input-field {
+            margin-bottom: 10px;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .result {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Kjøpskalkulator</h1>
+        <label for="kjopesum">Kjøpesum:</label>
+        <input type="number" id="kjopesum" class="input-field" step="0.01" required><br>
+        
+        <label for="moms">Moms (%):</label>
+        <input type="number" id="moms" class="input-field" step="0.01" required><br>
+        
+        <label for="aag">AAG (avgifter og gebyrer):</label>
+        <input type="number" id="aag" class="input-field" step="0.01" required><br>
+        
+        <label for="skatteprosent">Skatteprosent (%):</label>
+        <input type="number" id="skatteprosent" class="input-field" step="0.01" required><br>
+        
+        <button onclick="beregn()">Beregn</button>
+        
+        <div class="result" id="resultat"></div>
+    </div>
+
+    <script>
+        function beregn() {
+            var kjopesum = parseFloat(document.getElementById('kjopesum').value);
+            var moms = parseFloat(document.getElementById('moms').value);
+            var aag = parseFloat(document.getElementById('aag').value);
+            var skatteprosent = parseFloat(document.getElementById('skatteprosent').value);
+
+            var totalMoms = (kjopesum * moms) / 100;
+            var totalAAG = aag;
+            var totalSkatt = (kjopesum + totalAAG + totalMoms) * (skatteprosent / 100);
+
+            var totalSum = kjopesum + totalAAG + totalMoms + totalSkatt;
+
+            var resultatElement = document.getElementById('resultat');
+            resultatElement.innerHTML = `
+                Kjøpesum: ${kjopesum} kr<br>
+                Moms: ${totalMoms} kr<br>
+                AAG: ${totalAAG} kr<br>
+                Skatt: ${totalSkatt} kr<br>
+                Total sum: ${totalSum} kr
+            `;
+        }
+    </script>
+</body>
+</html>
