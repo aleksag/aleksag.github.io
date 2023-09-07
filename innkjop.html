@@ -34,6 +34,10 @@
             font-weight: bold;
             margin-top: 10px;
         }
+        .doubleUnderline {
+            text-decoration:underline;
+            border-bottom: 1px solid #000;
+        }
     </style>
 </head>
 
@@ -77,12 +81,13 @@
             var totalSum = kjopesum - totalAAG - totalMoms - totalSkatt;
 
             var resultatElement = document.getElementById('resultat');
-            resultatElement.innerHTML = `
-                Kjøpesum: ${kjopesum} kr<br>
-                Moms: ${totalMoms} kr<br>
-                AAG: ${totalAAG} kr<br>
-                Skatt: ${totalSkatt} kr<br>
-                Total sum: ${totalSum} kr
+            resultatElement.innerHTML = `<div style="text-align:left;">
+                <p>Kjøpesum: ${kjopesum} kr</p>
+                <p>- Moms: ${totalMoms} kr</p>
+                <p>- AAG: ${totalAAG} kr</p>
+                <p>- Skatt: ${totalSkatt} kr</p>
+                <p>Total lønnskostnad (kjøpesum - (moms + aag + skatt)):</br> <span class="doubleUnderline">${totalSum}</span> kr</p>
+                </div>
             `;
         }
     </script>
