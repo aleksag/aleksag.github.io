@@ -39,13 +39,13 @@
         <input type="number" id="kjopesum" class="input-field" step="0.01" required><br>
         
         <label for="moms">Moms (%):</label>
-        <input type="number" id="moms" class="input-field" step="0.01" required><br>
+        <input type="number" id="moms" class="input-field" step="0.01" value="25" required><br>
         
         <label for="aag">AAG (avgifter og gebyrer):</label>
-        <input type="number" id="aag" class="input-field" step="0.01" required><br>
+        <input type="number" id="aag" class="input-field" step="0.01" value="14.1" required><br>
         
         <label for="skatteprosent">Skatteprosent (%):</label>
-        <input type="number" id="skatteprosent" class="input-field" step="0.01" required><br>
+        <input type="number" id="skatteprosent" class="input-field" step="0.01" value="42" required><br>
         
         <button onclick="beregn()">Beregn</button>
         
@@ -59,11 +59,11 @@
             var aag = parseFloat(document.getElementById('aag').value);
             var skatteprosent = parseFloat(document.getElementById('skatteprosent').value);
 
-            var totalMoms = (kjopesum * moms) / 100;
-            var totalAAG = aag;
-            var totalSkatt = (kjopesum + totalAAG + totalMoms) * (skatteprosent / 100);
+            var totalMoms = (kjopesum/100)*moms;
+            var totalAAG = ((kjopesum-totalMoms)/100)*aag;
+            var totalSkatt = ((kjopesum-totalMoms-totalAAG)/100)*skatteprosent;
 
-            var totalSum = kjopesum + totalAAG + totalMoms + totalSkatt;
+            var totalSum = kjopesum - totalAAG - totalMoms - totalSkatt;
 
             var resultatElement = document.getElementById('resultat');
             resultatElement.innerHTML = `
