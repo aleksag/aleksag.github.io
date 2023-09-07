@@ -75,11 +75,14 @@
             var skatteprosent = parseFloat(document.getElementById('skatteprosent').value);
 
             var totalMoms = (kjopesum / 100) * moms;
+            totalMoms = totalMoms.toFixed(2);
             var totalAAG = ((kjopesum - totalMoms) / 100) * aag;
+            totalAAG = totalAAG.toFixed(2);
             var totalSkatt = ((kjopesum - totalMoms - totalAAG) / 100) * skatteprosent;
+            totalSkatt = totalSkatt.toFixed(2);
 
             var totalSum = kjopesum - totalAAG - totalMoms - totalSkatt;
-
+            totalSum = totalSum.toFixed(2);
             var resultatElement = document.getElementById('resultat');
             resultatElement.innerHTML = `<div style="text-align:left;">
                 <p>Kjøpesum: ${kjopesum} kr</p>
