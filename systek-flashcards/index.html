@@ -9,6 +9,7 @@
 </body>
 <script>
     function fetchData() {
+        //kan ikke hente fra systek.no pga cors, så henter fra github pages
         fetch("https://aleksag.github.io/systek-flashcards/backup.html")
             .then((response) => response.text()).then((data) => takeData(data));
     }
@@ -21,7 +22,6 @@
     var alleAnsatte = [];
     function render(ansatte){
         alleAnsatte = ansatte;
-        //get random element from ansatte array
         next();
     }
     function next(){
@@ -57,7 +57,6 @@
             element.style.display = "";
         });
     }
-
     fetchData();
 </script>
 
