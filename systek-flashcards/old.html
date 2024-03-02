@@ -1,0 +1,63 @@
+<html>
+
+<head>
+    <title>Systek Ansatte Flashcards</title>
+</head>
+
+<body>
+    <div id="container" style="height: 400px;"></div>
+</body>
+<script>
+    function fetchData() {
+        //kan ikke hente fra systek.no pga cors, så henter fra github pages
+        fetch("https://aleksag.github.io/systek-flashcards/backup.html")
+            .then((response) => response.text()).then((data) => takeData(data));
+    }
+
+    function takeData(val) {
+        var doc = (new DOMParser).parseFromString(val, "text/html");
+        let ansatte = doc.querySelectorAll('[class^="employeeCard_employee"]')
+        render(ansatte);
+    }
+    var alleAnsatte = [];
+    function render(ansatte){
+        alleAnsatte = ansatte;
+        next();
+    }
+    function next(){
+        var container = document.getElementById("container");
+        var randomAnsatte = alleAnsatte[Math.floor(Math.random() * alleAnsatte.length)];
+        
+
+        let ansatteImages = randomAnsatte.getElementsByTagName("img");
+        for (let i = 0; i < ansatteImages.length; i++) {
+            console.log(ansatteImages[i])
+            ansatteImages[i].height = "600";
+        }
+        container.innerHTML = randomAnsatte.outerHTML;
+        
+        let stuffToHide = document.querySelectorAll('[class^="employeeCard_infoSection"]')
+        stuffToHide.forEach(element => {
+            element.style.display = "none";
+        });
+
+        let button = document.createElement("button");
+        button.innerHTML = "Neste";
+        button.onclick = next;
+        container.appendChild(button);
+
+        let showButton = document.createElement("button");
+        showButton.innerHTML = "Vis info";
+        showButton.onclick = showInfo;
+        container.appendChild(showButton);        
+    }
+    function showInfo(){
+        let stuffToHide = document.querySelectorAll('[class^="employeeCard_infoSection"]')
+        stuffToHide.forEach(element => {
+            element.style.display = "";
+        });
+    }
+    fetchData();
+</script>
+
+</html>

@@ -1,13 +1,99 @@
 <html>
 
 <head>
+    <meta charset="UTF-8">
     <title>Systek Ansatte Flashcards</title>
 </head>
+<style>
+    .imageContainer {
+        align-items: center;
+        padding-bottom: 2em;
+        width: 50%;
+        text-align: center;
+        margin: auto;
+    }
+
+    .controls {
+        align-items: center;
+        padding-bottom: 2em;
+        width: 50%;
+        text-align: center;
+        margin: auto;
+    }
+
+    .row {
+        width: 100%;
+    }
+
+    .ipt-box {
+        margin: auto;
+        width: 50%;
+
+        input {
+            width: 75%;
+            height: 2rem;
+            border-radius: 0.5rem;
+            padding: 0.3rem;
+            border: 1px solid teal;
+            cursor: pointer;
+        }
+
+
+        input:active,
+        input:focus,
+        input:hover {
+            box-shadow: 2px 1px 6px 0px teal;
+        }
+    }
+
+    .outputList {
+        padding: 2rem;
+        width: 50%;
+        margin: auto;
+
+        li {
+            cursor: pointer;
+            list-style-type: none;
+            padding: 0.5rem;
+            border: 1px solid teal;
+        }
+
+        li:hover {
+            background: rgba(0, 0, 0, 0.1);
+            color: black;
+        }
+
+
+    }
+</style>
 
 <body>
-    <div id="container" style="height: 400px;"></div>
+    <div class="imageContainer" id="container"></div>
+    <div id="score" class="controls"></div>
+    <div class="controls" id="controls">
+        <div class="row ipt-box">
+            <input id="search" autocomplete="off" type="text" placeholder="Søk på navn">
+        </div>
+        <div class="row">
+            <ul class="outputList">
+            </ul>
+        </div>
+        <button id="gjettbutton">Svar</button>
+    </div>
 </body>
 <script>
+    let alleAnsatte = Array();
+    let initialData = Array();
+    let autoCompleteData = Array();
+    let correctAnswers = 0;
+    
+    const searchInput = document.querySelector("#search");
+    searchInput.addEventListener('keydown', autocomplete);
+    const outputList = document.querySelector(".outputList");
+    
+    const gjettButton = document.querySelector("#gjettbutton");
+    gjettButton.addEventListener('click',gjett);
+
     function fetchData() {
         //kan ikke hente fra systek.no pga cors, så henter fra github pages
         fetch("https://aleksag.github.io/systek-flashcards/backup.html")
@@ -17,46 +103,94 @@
     function takeData(val) {
         var doc = (new DOMParser).parseFromString(val, "text/html");
         let ansatte = doc.querySelectorAll('[class^="employeeCard_employee"]')
+        let names = doc.querySelectorAll('[class^="employeeCard_name"]')
+        names.forEach(name => {
+            autoCompleteData.push(name.innerHTML);
+        });
+
         render(ansatte);
     }
-    var alleAnsatte = [];
-    function render(ansatte){
-        alleAnsatte = ansatte;
+
+    function render(ansatte) {
+        alleAnsatte.push(...ansatte);
+        initialData.push(...ansatte);
+        console.log(autoCompleteData);
+        updateScore("");
         next();
     }
-    function next(){
-        var container = document.getElementById("container");
-        var randomAnsatte = alleAnsatte[Math.floor(Math.random() * alleAnsatte.length)];
-        
+    function next() {
+        if (alleAnsatte.length == 0) {
+            alert("Du er gjennom alle ansatte, starter på nytt");
+            alleAnsatte = Array();
+            correctAnswers = 0;
+            alleAnsatte.push(...initialData);
+            updateScore("");
+        }
+        let container = document.getElementById("container");
+        let randomIndex = Math.floor(Math.random() * alleAnsatte.length);
+        var randomAnsatte = alleAnsatte[randomIndex];
+        alleAnsatte.splice(randomIndex, 1);
 
         let ansatteImages = randomAnsatte.getElementsByTagName("img");
         for (let i = 0; i < ansatteImages.length; i++) {
-            console.log(ansatteImages[i])
             ansatteImages[i].height = "600";
         }
         container.innerHTML = randomAnsatte.outerHTML;
-        
+
         let stuffToHide = document.querySelectorAll('[class^="employeeCard_infoSection"]')
+
         stuffToHide.forEach(element => {
             element.style.display = "none";
         });
-
-        let button = document.createElement("button");
-        button.innerHTML = "Neste";
-        button.onclick = next;
-        container.appendChild(button);
-
-        let showButton = document.createElement("button");
-        showButton.innerHTML = "Vis info";
-        showButton.onclick = showInfo;
-        container.appendChild(showButton);        
     }
-    function showInfo(){
+    function showInfo() {
         let stuffToHide = document.querySelectorAll('[class^="employeeCard_infoSection"]')
         stuffToHide.forEach(element => {
             element.style.display = "";
         });
     }
+
+    function gjett(e){
+        let guessedName = searchInput.value;
+        let correctName = document.querySelectorAll('[class^="employeeCard_name"]')[0].innerHTML;
+        var hint = "";
+        if(guessedName == correctName){
+            correctAnswers++;
+        }else{
+            hint = "Feil, dette var: "+correctName+"</br>";
+        }
+        searchInput.value = "";
+        updateScore(hint);
+        next();
+    }
+
+    function autocomplete(e) {
+        let searchText = !!e ? e.target.value : '';
+        if (searchText.length == 0) {
+            outputList.innerHTML = '';
+            e.stopPropagation();
+            return;
+        }
+        const filtered = autoCompleteData.filter(e => e.toLowerCase().includes(searchText.toLowerCase()));
+        var childsEl = '';
+        for (const ansatt of filtered) {
+            childsEl += `<li onclick="velgAnsatt(event)"> ${ansatt}</li>`;
+        }
+
+        outputList.innerHTML = childsEl;
+    }
+
+    function velgAnsatt(e) {
+        searchInput.value = e.target.textContent.trim();
+        outputList.innerHTML = "";
+    }
+    function updateScore(hint){
+        let output = hint + "Riktige svar: "+correctAnswers+"</br>"
+        output = output +  "Svart på : "+(initialData.length-alleAnsatte.length)+" av "+initialData.length+"</br>"
+        console.log(document.querySelector("#score"));
+        document.querySelector("#score").innerHTML = output;
+    }
+
     fetchData();
 </script>
 
