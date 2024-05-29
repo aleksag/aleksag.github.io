@@ -64,12 +64,12 @@ void loop() {
   float at = sqrt(gx * gx + gy * gy + gz * gz);
   if (at > 35000) {
     Serial.println(at);
-    myData.gx = 1;
-    myData.gy = 1;
-    myData.gz = 1;
-    myData.ax = 1;
-    myData.ay = 1;
-    myData.az = 1;
+    myData.gx = 2;
+    myData.gy = 2;
+    myData.gz = 2;
+    myData.ax = 2;
+    myData.ay = 2;
+    myData.az = 2;
     esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
 
     if (result == ESP_OK) {
