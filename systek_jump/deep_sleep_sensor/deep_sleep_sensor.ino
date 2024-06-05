@@ -1,6 +1,14 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #include <BMI160Gen.h>
+#include "esp_sleep.h"
+#include "driver/touch_sensor.h"
+
+//
+//
+// DEEP SLEEP KODE
+//
+//
 
 const int select_pin = 7;
 const int i2c_addr = 0x69;
@@ -20,19 +28,51 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
-String error ="";
+
+#if CONFIG_IDF_TARGET_ESP32
+  #define THRESHOLD   300      /* Greater the value, more the sensitivity */
+#else //ESP32-S2 and ESP32-S3 + default for other chips (to be adjusted) */
+  #define THRESHOLD   100000   /* Lower the value, more the sensitivity */
+#endif
+
+String error = "";
+#define TIME_TO_SLEEP  300  // Time in seconds (600 seconds = 10 minutes)    
+//#define TOUCH_PIN      T1   // Use touch pin 0 (GPIO4)
+
+void enterDeepSleep() {
+  Serial.println("Going to sleep now");
+  esp_deep_sleep_start();
+}
+
+void setupWakeUpTouchPin() {
+  //touchAttachInterrupt(T1, []{}, THRESHOLD);
+  //Serial.println("Setup wakeup with threshold:");
+  //Serial.print(THRESHOLD);
+  //esp_sleep_enable_touchpad_wakeup();
+  touchSleepWakeUpEnable(T1,THRESHOLD);
+}
+
+unsigned long lastActivityTime = 0;
+
+void blinkSignal(){
+  for(int i = 0; i < 10;i++){
+    digitalWrite(LED_BUILTIN,HIGH);
+    delay(300);
+    digitalWrite(LED_BUILTIN,LOW);
+  }
+}
 void setup() {
-  delay(5000);
-  // Init Serial Monitor
+  lastActivityTime = millis();
+  
+  //blinkSignal();
   Serial.begin(115200);
   Serial.print("Serial start");
+  
   Wire.begin();
   BMI160.begin(BMI160GenClass::I2C_MODE, Wire, i2c_addr);
 
-  // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
 
-  // Init ESP-NOW
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
     return;
@@ -40,64 +80,46 @@ void setup() {
 
   esp_now_register_send_cb(OnDataSent);
 
-  // Register peer
   memcpy(peerInfo.peer_addr, broadcastAddress, 6);
   peerInfo.channel = 0;
   peerInfo.encrypt = false;
 
-  // Add peer
   if (esp_now_add_peer(&peerInfo) != ESP_OK) {
     Serial.println("Failed to add peer");
     error = "FAILED TO ADD PEER";
     return;
   }
+
+  setupWakeUpTouchPin();
 }
 
 void loop() {
-  int gx, gy, gz;         // raw gyro values
-  //BMI160.readGyro(gx, gy, gz);
+  uint32_t touch_value;
+  /*touch_pad_read_raw_data(TOUCH_PAD_NUM1, &touch_value);
+  Serial.printf("%d,", touch_value);*/
+  
+  int gx, gy, gz;  // raw gyro values
   BMI160.readAccelerometer(gx, gy, gz);
   float at = sqrt(gx * gx + gy * gy + gz * gz);
+
+  unsigned long currentTime = millis();
   if (at > 35000) {
+    lastActivityTime = currentTime;
     Serial.println(error);
     Serial.println(at);
-    myData.boardNo = 2;
+    myData.boardNo =  1 ;
     esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
 
     if (result == ESP_OK) {
       Serial.println("Sent with success");
-    }
-    else {
+    } else {
       Serial.println("Error sending the data");
-      
     }
     delay(350);
   }
-  /*
-    // display tab-separated gyro x/y/z values
-    Serial.print("g:\t");
-    Serial.print(gx);
-    Serial.print("\t");
-    Serial.print(gy);
-    Serial.print("\t");
-    Serial.print(gz);
-    Serial.println();*/
-  /*
-    delay(500);
-    // Set values to send
-    myData.gx = 1;
-    myData.gy = 1;
-    myData.gz = 1;
-    myData.ax = 1;
-    myData.ay = 1;
-    myData.az = 1;
-    esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
 
-    if (result == ESP_OK) {
-    Serial.println("Sent with success");
-    }
-    else {
-    Serial.println("Error sending the data");
-    }*/
-
+  // Check for inactivity
+  if ((currentTime - lastActivityTime) > (TIME_TO_SLEEP * 1000)) {
+    enterDeepSleep();
+  }
 }

@@ -20,14 +20,9 @@ USBHIDKeyboard Keyboard;
 // Structure example to receive data
 // Must match the sender structure
 typedef struct struct_message {
-    int gx;
-    int gy;
-    int gz;
-    int ax;
-    int ay;
-    int az;
-    
+  int boardNo;
 } struct_message;
+
 
 // Create a struct_message called myData
 struct_message myData;
@@ -35,21 +30,8 @@ struct_message myData;
 // callback function that will be executed when data is received
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   memcpy(&myData, incomingData, sizeof(myData));
-  Serial.print("Bytes received: ");
-  Serial.println(len);
-  Serial.print("Gx:");
-  Serial.println(myData.gx);
-  Serial.print("Gy:");
-  Serial.println(myData.gy);
-  Serial.print("Gz:");
-  Serial.println(myData.gz);
-  Serial.print("Ax:");
-  Serial.println(myData.ax);
-  Serial.print("Ay:");
-  Serial.println(myData.ay);
   Serial.print("Az:");
-  Serial.println(myData.az);
-  Serial.println();
+  Serial.println(myData.boardNo);
   Keyboard.write((char) 32);
   
 }
