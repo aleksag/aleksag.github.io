@@ -82,12 +82,17 @@
             var totalSum = kjopesum - totalAAG - totalMoms - totalSkatt;
             totalSum = totalSum.toFixed(2);
             var resultatElement = document.getElementById('resultat');
+            var kjopesumFormatted = kjopesum.toLocaleString();
+            var totalMomsFormatted = totalMoms.toLocaleString();
+            var totalAAGFormatted = totalAAG.toLocaleString();
+            var totalSkattFormatted = totalSkatt.toLocaleString();
+            var totalSumFormatted = totalSum.toLocaleString();
             resultatElement.innerHTML = `<div style="text-align:left;">
-                <p>Kjøpesum: ${kjopesum} kr</p>
-                <p>- Moms: ${totalMoms} kr</p>
-                <p>- AAG: ${totalAAG} kr</p>
-                <p>- Skatt: ${totalSkatt} kr</p>
-                <p>Total lønnskostnad (kjøpesum - (moms + aag + skatt)):</br> <span class="doubleUnderline">${totalSum}</span> kr</p>
+                <p>Kjøpesum: ${kjopesumFormatted} kr</p>
+                <p>- Moms: ${totalMomsFormatted} kr</p>
+                <p>- AAG: ${totalAAGFormatted} kr</p>
+                <p>- Skatt: ${totalSkattFormatted} kr</p>
+                <p>Total lønnskostnad (kjøpesum - (moms + aag + skatt)):</br> <span class="doubleUnderline">${totalSumFormatted}</span> kr</p>
                 </div>
             `;
         }
