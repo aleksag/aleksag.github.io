@@ -42,10 +42,31 @@ function takeData(val) {
         );
 
     });
+    employees = removeRobot(employees);
     employees = shuffleArray(employees);
     populateDatalist();
     loadEmployee();
     updateScore();
+}
+
+function removeRobot(employeeObjects) {    
+    const seenImages = new Set();  
+    let robotUrl = "";
+    employeeObjects.forEach(employee => {
+        if (seenImages.has(employee.photo)) {
+            robotUrl = employee.photo;
+        }else{
+            seenImages.add(employee.photo);
+        }
+    });
+
+    let filteredEmployees = Array();
+    employeeObjects.forEach(employee => {
+        if(employee.photo != robotUrl){
+            filteredEmployees.push(employee);
+        }
+    })
+    return filteredEmployees;
 }
 
 function updateScore(){
