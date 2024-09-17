@@ -19,7 +19,7 @@ function populateDatalist() {
 }
 
 function fetchData() {
-    let siteUrl = "https://systek.no/folka-vare";
+    let siteUrl = "https://aleksag.github.io/systek-flashcards/backup.html";
     if (location.hostname === "localhost" || location.hostname === "127.0.0.1"){
         siteUrl = "http://localhost:8000/backup.html"
     }
