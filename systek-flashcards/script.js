@@ -11,7 +11,8 @@ const feedback = document.getElementById('feedback');
 const namesDatalist = document.getElementById('names');
 
 function populateDatalist() {
-    employees.forEach(employee => {
+    let options = shuffleArray(employees);
+    options.forEach(employee => {
         const option = document.createElement('option');
         option.value = employee.name;
         namesDatalist.appendChild(option);
@@ -51,11 +52,14 @@ function updateScore(){
     scoreDisplay.textContent = `Score: ${score}/${employees.length}`;
 }
 function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
+    let shuffledArray = array.slice();
+
+    for (let i = shuffledArray.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];  
+        [shuffledArray[i], shuffledArray[j]] = [shuffledArray[j], shuffledArray[i]];  
     }
-    return array;
+
+    return shuffledArray;
 }
 
 function loadEmployee() {
