@@ -1,7 +1,10 @@
+
 let employees = [
 ];
 let currentEmployeeIndex = 0;
 let score = 0;
+
+const jsConfetti = new JSConfetti()
 
 const employeeImage = document.getElementById('employee-image');
 const guessInput = document.getElementById('guess-input');
@@ -9,6 +12,9 @@ const submitBtn = document.getElementById('submit-btn');
 const scoreDisplay = document.getElementById('score');
 const feedback = document.getElementById('feedback');
 const namesDatalist = document.getElementById('names');
+
+let correctSound = new Audio('audio/correct.mp3');
+let wrongSound = new Audio('audio/wrong.mp3');
 
 function populateDatalist() {
     let options = shuffleArray(employees);
@@ -88,19 +94,33 @@ function loadEmployee() {
     employeeImage.src = currentEmployee.photo;
     guessInput.value = '';  
 }
+function correct(){
+    feedback.textContent = 'Riktig!';
+    feedback.style.color = 'green';
+    correctSound.play();
+    jsConfetti.addConfetti({
+        emojis: ['🌈', '⚡️', '💥', '✨', '💫', '🌸'],
+     })
+    score++;        
+}
 
+function wrong(){
+    wrongSound.play();
+    feedback.textContent = `Feil! Riktig navn var ${employees[currentEmployeeIndex].name}`;
+    feedback.style.color = 'red';
+    jsConfetti.addConfetti({
+        emojis: ['💩'],
+     })
+}
 
 function checkAnswer() {
     const currentEmployee = employees[currentEmployeeIndex];
     const userGuess = guessInput.value.trim();
 
     if (userGuess.toLowerCase() === currentEmployee.name.toLowerCase()) {
-        feedback.textContent = 'Riktig!';
-        feedback.style.color = 'green';
-        score++;        
+        correct();
     } else {
-        feedback.textContent = `Feil! Riktig navn var ${currentEmployee.name}`;
-        feedback.style.color = 'red';
+        wrong();
     }
 
     updateScore();
