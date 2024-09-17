@@ -36,7 +36,7 @@ function takeData(val) {
         let eName = ansatt.querySelectorAll('[class^="employeeCard_name"]')[0].innerHTML;
         employees.push(
             {
-                name: eName,
+                name: eName.trim(),
                 photo:ePhoto
             }
         );
