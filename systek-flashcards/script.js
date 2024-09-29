@@ -145,7 +145,6 @@ function updateStatistics(){
     for(let employeeName in answers){
 
         var employeeObject = employees.filter( item => item.name === employeeName)[0];
-        console.log(employeeObject);
 
         const li = document.createElement('li');
         li.textContent = `${employeeName} - antall ganger feil: ${answers[employeeName]}`
