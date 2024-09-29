@@ -12,9 +12,16 @@ const submitBtn = document.getElementById('submit-btn');
 const scoreDisplay = document.getElementById('score');
 const feedback = document.getElementById('feedback');
 const namesDatalist = document.getElementById('names');
+const incorrectGuessList = document.getElementById('incorrect-guess-list')
+const resetBtn = document.getElementById('reset-btn');
+const hoverEmployeeImage = document.getElementById('hover-employee-image');
+const hoverEmployeeImageContainer = document.getElementById('hover-image-container');
+
+
 
 let correctSound = new Audio('audio/correct.mp3');
 let wrongSound = new Audio('audio/wrong.mp3');
+let answers = {};
 
 function populateDatalist() {
     let options = shuffleArray(employees);
@@ -23,6 +30,17 @@ function populateDatalist() {
         option.value = employee.name;
         namesDatalist.appendChild(option);
     });
+}
+function loadStatistics(){
+    if (localStorage.getItem("statistics") === null) {
+        answers = {};
+        saveStatistics();
+    }
+    answers = JSON.parse(localStorage.getItem('statistics'))
+    updateStatistics();
+}
+function saveStatistics(){
+    localStorage.setItem('statistics', JSON.stringify(answers));
 }
 
 function fetchData() {
@@ -53,6 +71,7 @@ function takeData(val) {
     populateDatalist();
     loadEmployee();
     updateScore();
+    loadStatistics();
 }
 
 function removeRobot(employeeObjects) {    
@@ -106,11 +125,49 @@ function correct(){
 
 function wrong(){
     wrongSound.play();
-    feedback.textContent = `Feil! Riktig navn var ${employees[currentEmployeeIndex].name}`;
+    let employeeName = employees[currentEmployeeIndex].name;
+    feedback.textContent = `Feil! Riktig navn var ${employeeName} `;
+    if(employeeName in answers){
+        answers[employeeName] = answers[employeeName] + 1;
+    }else{
+        answers[employeeName] = 1;
+    }
+    updateStatistics();
+    saveStatistics();
     feedback.style.color = 'red';
     jsConfetti.addConfetti({
         emojis: ['💩'],
      })
+}
+
+function updateStatistics(){
+    incorrectGuessList.innerHTML = "";
+    for(let employeeName in answers){
+
+        var employeeObject = employees.filter( item => item.name === employeeName)[0];
+        console.log(employeeObject);
+
+        const li = document.createElement('li');
+        li.textContent = `${employeeName} - antall ganger feil: ${answers[employeeName]}`
+        li.dataset.photo = employeeObject.photo;
+        li.addEventListener('mouseenter', function() {
+            hoverEmployeeImage.src = li.dataset.photo;
+            hoverEmployeeImage.style.display = 'block';  // Show image on hover
+            hoverEmployeeImageContainer.style.display = 'block'
+        });
+    
+        li.addEventListener('mouseleave', function() {
+            hoverEmployeeImage.style.display = 'none';  // Hide image when not hovering
+            hoverEmployeeImageContainer.style.display = 'none';
+        });
+
+
+        incorrectGuessList.appendChild(li);
+    }
+}
+function resetStatistics(){
+    answers = {};
+    saveStatistics();
 }
 
 function checkAnswer() {
@@ -141,6 +198,7 @@ guessInput.addEventListener('keydown', function(event) {
 });
 
 submitBtn.addEventListener('click', checkAnswer);
-
+resetBtn.addEventListener('click', resetStatistics);
 fetchData();
+
 

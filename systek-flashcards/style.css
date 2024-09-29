@@ -1,13 +1,33 @@
 body {
     font-family: Arial, sans-serif;
     background-color: #f5f5f5;
-    text-align: center;
     margin: 0;
     padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    height: 100vh;
 }
 
 .container {
-    margin-top: 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.game-container {
+    display: flex;
+    justify-content: space-between;
+    width: 80%;
+    max-width: 1200px;
+}
+
+/* Main content styling */
+.main-content {
+    flex: 1;
+    text-align: center;
+    padding: 20px;
 }
 
 .image-container img {
@@ -50,4 +70,58 @@ button:hover {
     margin-top: 20px;
     font-size: 18px;
     color: red;
+}
+
+/* Stats panel styles */
+.stats-panel {
+    width: 300px;
+    padding: 20px;
+    background-color: #f0f0f0;
+    border-left: 2px solid #ccc;
+    margin-left: 20px;
+    height: fit-content;
+}
+
+.stats-panel h2 {
+    margin-bottom: 10px;
+}
+
+#incorrect-guess-list {
+    list-style-type: none;
+    padding: 0;
+    font-size: 16px;
+    color: #ff0000;
+}
+
+#incorrect-guess-list li {
+    margin-bottom: 5px;
+}
+
+#reset-btn {
+    margin-top: 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+#reset-btn:hover {
+    background-color: #c82333;
+}
+
+#hover-image-container {
+    position: absolute;
+    top: 10%;
+    right: 10%;
+    border: 2px solid #ccc;
+    padding: 10px;
+    background-color: #fff;
+    border-radius: 10px;
+    display: none;
+}
+
+#hover-employee-image {
+    max-width: 200px;
 }
