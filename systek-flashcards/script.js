@@ -167,6 +167,7 @@ function updateStatistics(){
 function resetStatistics(){
     answers = {};
     saveStatistics();
+    updateStatistics();
 }
 
 function checkAnswer() {
