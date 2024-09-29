@@ -70,8 +70,10 @@ function takeData(val) {
     });
     employees = removeRobot(employees);
     employees = shuffleArray(employees);
-    loadStatistics();
+    
     setEmployeeSubset()
+    loadStatistics();
+    updateStatistics();
 }
 
 function setEmployeeSubset() {
@@ -95,6 +97,8 @@ function setEmployeeSubset() {
     populateDatalist();  // Populate the datalist with the selected employees
     loadEmployee();  // Load the first employee
     updateScore();
+    loadStatistics();
+    updateStatistics();
 }
 
 function removeRobot(employeeObjects) {    
