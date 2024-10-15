@@ -12,17 +12,37 @@ const submitBtn = document.getElementById('submit-btn');
 const scoreDisplay = document.getElementById('score');
 const feedback = document.getElementById('feedback');
 const namesDatalist = document.getElementById('names');
+const incorrectGuessList = document.getElementById('incorrect-guess-list')
+const resetBtn = document.getElementById('reset-btn');
+const hoverEmployeeImage = document.getElementById('hover-employee-image');
+const hoverEmployeeImageContainer = document.getElementById('hover-image-container');
+const employeeCountSelect = document.getElementById('employee-count');
+
 
 let correctSound = new Audio('audio/correct.mp3');
 let wrongSound = new Audio('audio/wrong.mp3');
+let answers = {};
+let employeeSubset = [];
 
 function populateDatalist() {
     let options = shuffleArray(employees);
+    namesDatalist.innerHTML = "";
     options.forEach(employee => {
         const option = document.createElement('option');
         option.value = employee.name;
         namesDatalist.appendChild(option);
     });
+}
+function loadStatistics(){
+    if (localStorage.getItem("statistics") === null) {
+        answers = {};
+        saveStatistics();
+    }
+    answers = JSON.parse(localStorage.getItem('statistics'))
+    updateStatistics();
+}
+function saveStatistics(){
+    localStorage.setItem('statistics', JSON.stringify(answers));
 }
 
 function fetchData() {
@@ -50,9 +70,35 @@ function takeData(val) {
     });
     employees = removeRobot(employees);
     employees = shuffleArray(employees);
-    populateDatalist();
-    loadEmployee();
+    
+    setEmployeeSubset()
+    loadStatistics();
+    updateStatistics();
+}
+
+function setEmployeeSubset() {
+    employees = shuffleArray(employees);
+    
+    const selectedCount = employeeCountSelect.value;
+    console.log(employees.length);
+    if (selectedCount === "all") {
+        employeeSubset = [...employees];  // Use all employees
+    } else {
+        const count = parseInt(selectedCount);
+        console.log("selectedCount:"+selectedCount);
+        employeeSubset = employees.slice(0, count);  // Slice the array for the selected count
+    }
+
+    // Reset the game
+    currentEmployeeIndex = 0;
+    score = 0;
+    submitBtn.disabled = false;  // Enable the submit button
+    incorrectGuessList.innerHTML = '';  // Clear incorrect guesses
+    populateDatalist();  // Populate the datalist with the selected employees
+    loadEmployee();  // Load the first employee
     updateScore();
+    loadStatistics();
+    updateStatistics();
 }
 
 function removeRobot(employeeObjects) {    
@@ -76,7 +122,8 @@ function removeRobot(employeeObjects) {
 }
 
 function updateScore(){
-    scoreDisplay.textContent = `Score: ${score}/${employees.length}`;
+    console.log(employeeSubset.length);
+    scoreDisplay.textContent = `Score: ${score}/${employeeSubset.length}`;
 }
 function shuffleArray(array) {
     let shuffledArray = array.slice();
@@ -90,7 +137,7 @@ function shuffleArray(array) {
 }
 
 function loadEmployee() {
-    const currentEmployee = employees[currentEmployeeIndex];
+    const currentEmployee = employeeSubset[currentEmployeeIndex];
     employeeImage.src = currentEmployee.photo;
     guessInput.value = '';  
 }
@@ -106,15 +153,53 @@ function correct(){
 
 function wrong(){
     wrongSound.play();
-    feedback.textContent = `Feil! Riktig navn var ${employees[currentEmployeeIndex].name}`;
+    let employeeName = employeeSubset[currentEmployeeIndex].name;
+    feedback.textContent = `Feil! Riktig navn var ${employeeName} `;
+    if(employeeName in answers){
+        answers[employeeName] = answers[employeeName] + 1;
+    }else{
+        answers[employeeName] = 1;
+    }
+    updateStatistics();
+    saveStatistics();
     feedback.style.color = 'red';
     jsConfetti.addConfetti({
         emojis: ['💩'],
      })
 }
 
+function updateStatistics(){
+    incorrectGuessList.innerHTML = "";
+    for(let employeeName in answers){
+
+        var employeeObject = employees.filter( item => item.name === employeeName)[0];
+
+        const li = document.createElement('li');
+        li.textContent = `${employeeName} - antall ganger feil: ${answers[employeeName]}`
+        li.dataset.photo = employeeObject.photo;
+        li.addEventListener('mouseenter', function() {
+            hoverEmployeeImage.src = li.dataset.photo;
+            hoverEmployeeImage.style.display = 'block';  // Show image on hover
+            hoverEmployeeImageContainer.style.display = 'block'
+        });
+    
+        li.addEventListener('mouseleave', function() {
+            hoverEmployeeImage.style.display = 'none';  // Hide image when not hovering
+            hoverEmployeeImageContainer.style.display = 'none';
+        });
+
+
+        incorrectGuessList.appendChild(li);
+    }
+}
+function resetStatistics(){
+    answers = {};
+    saveStatistics();
+    updateStatistics();
+}
+
 function checkAnswer() {
-    const currentEmployee = employees[currentEmployeeIndex];
+    const currentEmployee = employeeSubset[currentEmployeeIndex];
     const userGuess = guessInput.value.trim();
 
     if (userGuess.toLowerCase() === currentEmployee.name.toLowerCase()) {
@@ -126,10 +211,10 @@ function checkAnswer() {
     updateScore();
 
     currentEmployeeIndex++;
-    if (currentEmployeeIndex < employees.length) {
+    if (currentEmployeeIndex < employeeSubset.length) {
         loadEmployee();
     } else {
-        feedback.textContent = ' Game over!, du fikk '+score+" riktige av "+employees.length+" mulige";
+        feedback.textContent = ' Game over!, du fikk '+score+" riktige av "+employeeSubset.length+" mulige";
         submitBtn.disabled = true;  // Disable the submit button when the game ends
     }
 }
@@ -141,6 +226,8 @@ guessInput.addEventListener('keydown', function(event) {
 });
 
 submitBtn.addEventListener('click', checkAnswer);
-
+resetBtn.addEventListener('click', resetStatistics);
+employeeCountSelect.addEventListener('change', setEmployeeSubset);
 fetchData();
+
 

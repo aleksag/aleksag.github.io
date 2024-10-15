@@ -1,36 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Navnelek</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"></script>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
 </head>
+
 <body>
     <div class="container">
+
         <h1>Systek name game</h1>
         <h3>Hvor mange navn klarer du?!</h3>
-        <div class="score-board">
-            <span id="score"></span>
+        <div class="game-container">
+
+            <div class="main-content">
+
+                <div class="score-board">
+                    <span id="score"></span>
+                </div>
+                <div class="input-container">
+                    <label for="employee-count">Hvor mange vil du gjette på?:</label>
+                    <select id="employee-count">
+                        <option value="all">Alle</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+
+                <div class="image-container">
+                    <img id="employee-image" alt="Employee Photo">
+                </div>
+
+                <div class="input-container">
+                    <input list="names" id="guess-input" placeholder="Skriv inn navn" autocomplete="on">
+                    <datalist id="names">
+                    </datalist>
+                </div>
+
+                <button id="submit-btn">Svar</button>
+
+                <p id="feedback"></p>
+
+                
+            </div>
+            <div class="stats-panel">
+                <h3>Statistikk</h3>
+                <ul id="incorrect-guess-list">
+                </ul>
+                <button id="reset-btn">Nullstill statistikk</button>
+            </div>
         </div>
-
-        <div class="image-container">
-            <img id="employee-image" alt="Employee Photo">
+        <div id="hover-image-container">
+            <img id="hover-employee-image" src="" alt="Employee Image" style="display: none;">
         </div>
-
-        <div class="input-container">
-            <input list="names" id="guess-input" placeholder="Skriv inn navn" autocomplete="on">
-            <datalist id="names">
-            </datalist>
-        </div>
-
-        <button id="submit-btn">Svar</button>
-
-        <p id="feedback"></p>
-
     </div>
 
     <script src="script.js"></script>
 </body>
+
 </html>
