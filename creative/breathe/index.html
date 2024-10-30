@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style> 
+.square {
+  top: 50vw;
+  left: 50vw;
+  position: relative;
+  width: 200px;
+  height: 200px;
+  /* Match the squareLine's position and size */
+}
+
+.squareLine {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border: solid 1px black;
+}
+
+@keyframes followPath {
+  0%   {left: 0px; top: 0px;}
+  25%  {left: 200px; top: 0px;}
+  50%  {left: 200px; top: 200px;}
+  75%  {left: 0px; top: 200px;}
+  100% {left: 0px; top: 0px;}
+}
+@keyframes breatheInKeys {
+  0%   {opacity:0%}
+  7%  {opacity:0%}
+  18%  {opacity:0%}
+  75%  {opacity:0%}
+  100% {opacity:0%}
+}
+@keyframes hold1Keys {
+  0%   {opacity:0%}
+  18%  {opacity:0%}
+  22%  {opacity:0%}
+  35%  {opacity:0%}
+  100% {opacity:0%}
+}
+@keyframes breatheOutKeys {
+  0%   {opacity:0%}
+  7%  {opacity:0%}
+  50%  {opacity:0%}
+  57%  {opacity:0%}
+  80%  {opacity:0%}
+  100% {opacity:0%}
+}
+
+.breatheIn {
+  animation-name: breatheInKeys;
+  animation-duration: 16s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.hold1 {
+  animation-name: hold1Keys;
+  animation-duration: 16s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.breatheOut {
+  animation-name: breatheOutKeys;
+  animation-duration: 16s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+
+
+
+.dot {
+  margin-top:-12.5px;
+  margin-left:-12.5px;
+  height: 25px;
+  width: 25px;
+  background-color: #bbb;
+  border-radius: 50%;
+  position: absolute;
+  animation-name: followPath;
+  animation-duration: 16s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+</style>
+</head>
+<body>
+
+<div class="square">
+  <span class="dot"></span>
+  <div class="squareLine"></div>
+  <span class="breatheIn">Breathe In</span>
+  <span class="hold1">Hold</span>
+  <span class="breatheOut">Breathe out</span>
+</div>
+
+</body>
+</html>
+
