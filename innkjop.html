@@ -73,13 +73,12 @@
             var skatteprosent = parseFloat(document.getElementById('skatteprosent').value);
 
             var totalMoms = (kjopesum / 100) * moms;
+            var kjopeSumUtenMoms = kjopesum - totalMoms;
+            var totalAAG = (kjopeSumUtenMoms) - (kjopeSumUtenMoms/1.141);
+            
             totalMoms = totalMoms.toFixed(2);
-            /*
-du kanke ta (sum-moms) * AGA
-11:35
-du må ta (sum-moms) - ((sum-moms)/1.141), som blir sligtly mindre (edited) 
-            */
-            var totalAAG = ((kjopesum - totalMoms) - ((kjopesum - totalMoms)/ (aag/10)));
+            
+            console.log(aag/10);
             totalAAG = totalAAG.toFixed(2);
             var totalSkatt = ((kjopesum - totalMoms - totalAAG) / 100) * skatteprosent;
             totalSkatt = totalSkatt.toFixed(2);
