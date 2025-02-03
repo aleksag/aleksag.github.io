@@ -74,7 +74,12 @@
 
             var totalMoms = (kjopesum / 100) * moms;
             totalMoms = totalMoms.toFixed(2);
-            var totalAAG = ((kjopesum - totalMoms) / 100) * aag;
+            /*
+du kanke ta (sum-moms) * AGA
+11:35
+du må ta (sum-moms) - ((sum-moms)/1.141), som blir sligtly mindre (edited) 
+            */
+            var totalAAG = ((kjopesum - totalMoms) - ((kjopesum - totalMoms)/ (aag/10)));
             totalAAG = totalAAG.toFixed(2);
             var totalSkatt = ((kjopesum - totalMoms - totalAAG) / 100) * skatteprosent;
             totalSkatt = totalSkatt.toFixed(2);
