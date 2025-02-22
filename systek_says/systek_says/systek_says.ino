@@ -1,6 +1,6 @@
 #include <Wire.h>
-#include <SparkFunSX1509.h>
 #include <vector>
+#include "SparkFunSX1509.h"
 
 char readButtons(); // Function to read button input
 void lightButton(char number, int color); // Function to light up button
@@ -55,23 +55,14 @@ void setup() {
     while (1)
       ;
   }
-  byte scanTime = 8;
-  byte debounceTime = 4;
+  byte scanTime = 2;
+  byte debounceTime = 1;
   byte sleepTime = 0;
   io_keys.keypad(KEY_ROWS, KEY_COLS,
                  sleepTime, scanTime, debounceTime);
   pinMode(ARDUINO_INTERRUPT_PIN, INPUT_PULLUP);
   randomSeed(analogRead(0));
   sequencePlay(5);
-  xTaskCreatePinnedToCore(
-    Task2code,   /* Task function. */
-    "Task2",     /* name of task. */
-    10000,       /* Stack size of task */
-    NULL,        /* parameter of the task */
-    1,           /* priority of the task */
-    &Task2,      /* Task handle to keep track of created task */
-    1);
-
 }
 unsigned int previousKeyData = 0;
 char previousChar = '0';
@@ -94,41 +85,47 @@ void sequencePlay(int repeats) {
   delay(500);
 }
 
-volatile int currentKey = -1;
-volatile bool userInput = false;
-void Task2code( void * pvParameters ) {
-  Serial.print("Task2 running on core ");
-  Serial.println(xPortGetCoreID());
-
-  for (;;) {
-    if (digitalRead(ARDUINO_INTERRUPT_PIN) == LOW && userInput == false) {
-      unsigned int keyData = io_keys.readKeypad();
-      byte row = io_keys.getRow(keyData);
-      byte col = io_keys.getCol(keyData);
-      int inputValue = keyMap[row][col];
-      if (inputValue != 0) {
-        Serial.print("got input in thread");
-        Serial.println(inputValue);
-        currentKey = inputValue;
-        userInput = true;
-      }
-    }else{
-      currentKey = -1;
-      userInput = false;
-    }
-  }
-}
 
 
 void loop() {
   sequence.push_back(random(1, 16)); // Add a random button to sequence
   playSequence();
 
-  if (!getUserInput()) {
-    gameOver = true;
+  for (int expected : sequence) {
+    int inputValue = -1;
+    Serial.print("Expecting user input: ");
+    Serial.println(expected);
+    while (true) {
+      if (digitalRead(ARDUINO_INTERRUPT_PIN) == LOW)
+      {
+        delay(30);
+        unsigned int keyData = io_keys.readKeypad();
+        if (keyData != 0) {
+          io_keys.writeByte(0x15,0x00);
+          byte row = io_keys.getRow(keyData);
+          byte col = io_keys.getCol(keyData);
+          inputValue = keyMap[row][col];
+          Serial.println((String)"Got input " + inputValue);
+          delay(10);
+          while (io_keys.readKeypad() != 0) {
+            Serial.println("Delaying...");
+            delay(10);
+          }
+          break;
+        }
+      }
+      delay(30);
+    }
+    if (inputValue != expected) {
+      gameOver = true; // Wrong input
+      break;
+    }
+  }
+
+  if (gameOver) {
     sequence.clear(); // Reset game
-    gameOver = false;
     sequencePlay(5);
+    gameOver = false;
   }
   delay(1000);
 }
@@ -149,26 +146,6 @@ void playSequence() {
   }
 }
 
-bool getUserInput() {
-  unsigned long startTime;
-  Serial.println("Reading user input");
-  for (int expected : sequence) {
-    startTime = millis();
-    int inputValue = -1;
-    Serial.print("Expecting user input: ");
-    Serial.println(expected);
-    while (millis() - startTime < INPUT_TIMEOUT) {
-      if (userInput)
-      {
-        inputValue = currentKey;
-        break;
-      }
-
-    }
-    if (inputValue != expected) return false; // Wrong input
-  }
-  return true;
-}
 
 
 int hexCharToDecimal(char hexChar) {
