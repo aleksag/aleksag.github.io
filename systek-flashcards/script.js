@@ -17,7 +17,15 @@ const resetBtn = document.getElementById('reset-btn');
 const hoverEmployeeImage = document.getElementById('hover-employee-image');
 const hoverEmployeeImageContainer = document.getElementById('hover-image-container');
 const employeeCountSelect = document.getElementById('employee-count');
-
+const robotNames = [
+    "Espen Warg Næss",
+    "Gunnar Danielsen",
+    "Jacob Meidell",
+    "Markus Medalen",
+    "Morten Punnerud Engelstad",
+    "Per-Bjørnar Iversen",
+    "Øyvind Skytøen"
+  ];
 
 let correctSound = new Audio('audio/correct.mp3');
 let wrongSound = new Audio('audio/wrong.mp3');
@@ -59,13 +67,14 @@ function takeData(val) {
     let ansatte = doc.querySelectorAll('[class^="employeeCard_employee"]')
     ansatte.forEach(ansatt => {
         let ePhoto = ansatt.getElementsByTagName("img")[0].src;
-        let eName = ansatt.querySelectorAll('[class^="employeeCard_name"]')[0].innerHTML;
-        employees.push(
-            {
-                name: eName.trim(),
-                photo:ePhoto
-            }
-        );
+        let eName = ansatt.querySelectorAll('[class^="employeeCard_name"]')[0].innerHTML.trim();
+            employees.push(
+                {
+                    name: eName,
+                    photo:ePhoto
+                }
+            );
+        
 
     });
     employees = removeRobot(employees);
@@ -97,24 +106,20 @@ function setEmployeeSubset() {
     populateDatalist();  // Populate the datalist with the selected employees
     loadEmployee();  // Load the first employee
     updateScore();
-    loadStatistics();
-    updateStatistics();
+    try{
+        loadStatistics();
+        updateStatistics();
+    }catch(e){
+        resetStatistics();
+    }
 }
 
 function removeRobot(employeeObjects) {    
-    const seenImages = new Set();  
-    let robotUrl = "";
-    employeeObjects.forEach(employee => {
-        if (seenImages.has(employee.photo)) {
-            robotUrl = employee.photo;
-        }else{
-            seenImages.add(employee.photo);
-        }
-    });
+    
 
     let filteredEmployees = Array();
     employeeObjects.forEach(employee => {
-        if(employee.photo != robotUrl){
+        if(!robotNames.includes(employee.name)){
             filteredEmployees.push(employee);
         }
     })

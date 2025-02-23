@@ -73,8 +73,12 @@
             var skatteprosent = parseFloat(document.getElementById('skatteprosent').value);
 
             var totalMoms = (kjopesum / 100) * moms;
+            var kjopeSumUtenMoms = kjopesum - totalMoms;
+            var totalAAG = (kjopeSumUtenMoms) - (kjopeSumUtenMoms/1.141);
+            
             totalMoms = totalMoms.toFixed(2);
-            var totalAAG = ((kjopesum - totalMoms) / 100) * aag;
+            
+            console.log(aag/10);
             totalAAG = totalAAG.toFixed(2);
             var totalSkatt = ((kjopesum - totalMoms - totalAAG) / 100) * skatteprosent;
             totalSkatt = totalSkatt.toFixed(2);
