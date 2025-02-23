@@ -192,7 +192,7 @@ void sequencePlay(int repeats) {
 }
 
 
-
+int score = 0;
 void loop() {
   sequence.push_back(random(1, 16)); // Add a random button to sequence
   playSequence();
@@ -230,12 +230,15 @@ void loop() {
       break;
     }
   }
-
+  score = score+1;
+  Serial.println((String)"#SCORE:" + score);
   if (gameOver) {
     sequence.clear(); // Reset game
     playGameOverSound();
     sequencePlay(5);
     gameOver = false;
+    Serial.println((String)"#GAMEOVER:" + score);
+    score = 0;
   }
   delay(1000);
 }

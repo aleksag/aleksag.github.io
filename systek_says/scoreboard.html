@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serial Port Communication</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #output {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 10px;
+            height: 300px;
+            overflow-y: auto;
+        }
+        button {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Serial Port Communication</h1>
+    <button id="connectBtn">Connect to Serial Port</button>
+    <div id="output">
+        <!-- Data from the serial port will be displayed here -->
+    </div>
+    <h1 id="currentScore">
+        Score:0
+    </h1>
+
+    <script>
+        let port;
+        let reader;
+        let outputDiv = document.getElementById('output');
+        let inputStream;
+        let decoder;
+        let lineBuffer = '';
+
+        document.getElementById('connectBtn').addEventListener('click', async () => {
+            try {
+                // Request a port
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+
+                outputDiv.innerHTML += `<div>Connected to ${port.getInfo().usbVendorId}:${port.getInfo().usbProductId}</div>`;
+
+                // Start reading data from the port
+                inputStream = port.readable;
+                decoder = new TextDecoderStream();
+                reader = inputStream.pipeTo(decoder.writable);
+                readLoop();
+            } catch (error) {
+                console.error('Error opening port:', error);
+                outputDiv.innerHTML += `<div>Error: ${error.message}</div>`;
+            }
+        });
+
+        async function readLoop() {
+            const readerStream = decoder.readable.getReader();
+
+            while (true) {
+                try {
+                    const { value, done } = await readerStream.read();
+                    if (done) {
+                        break; // Exit the loop if the stream is done
+                    }
+                    lineBuffer += value; // Append the received data to the buffer
+                    processLines(); // Process the lines in the buffer
+                } catch (error) {
+                    console.error('Read error:', error);
+                    outputDiv.innerHTML += `<div>Error: ${error.message}</div>`;
+                    break; // Exit loop on error
+                }
+            }
+
+            // Clean up
+            readerStream.releaseLock();
+        }
+
+        function processLines() {
+            let lines = lineBuffer.split('\n'); // Split the buffer into lines
+            lineBuffer = lines.pop(); // Retain the last incomplete line in the buffer
+
+            lines.forEach(line => {
+                if (line.trim()) { // Ignore empty lines
+                    if(line.startsWith("#SCORE:")){
+                        var actualScore = line.replace("#SCORE:","");
+                        document.getElementById("currentScore").innerHTML = "Score: "+actualScore;
+                    }
+                    if(line.startsWith("#GAMEOVER:")){
+                        var actualScore = line.replace("#GAMEOVER:","");
+                        alert("game over "+actualScore)
+                    }
+                    //outputDiv.innerHTML += `<div>${line}</div>`; // Display each complete line
+                    //outputDiv.scrollTop = outputDiv.scrollHeight; // Auto-scroll to the bottom
+                }
+            });
+        }
+    </script>
+</body>
+</html>
