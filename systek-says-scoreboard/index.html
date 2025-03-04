@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head data-llama-editable="true" data-llama-id="0">
+    <meta charset="utf-8" data-llama-editable="true" data-llama-id="1" />
+    <meta content="width=device-width, initial-scale=1.0" data-llama-editable="true" data-llama-id="2"
+        name="viewport" />
+    <title data-llama-editable="true" data-llama-id="3">70s Style Scoreboard</title>
+    <script data-llama-editable="true" data-llama-id="4" src="https://cdn.tailwindcss.com"></script>
+    <link data-llama-editable="true" data-llama-id="5" href="https://fonts.cdnfonts.com/css/futura-display"
+        rel="stylesheet" />
+    <style data-llama-editable="true" data-llama-id="6">
+        body {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4, #FFD93D);
+            font-family: 'Futura Display', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen" data-llama-editable="true" data-llama-id="7" style="cursor: crosshair;">
+    <div class="max-w-4xl mx-auto p-8" data-llama-editable="true" data-llama-id="8">
+        <!-- Main Container -->
+        <div class="bg-[#FFF8E7] rounded-xl shadow-2xl p-8 border-4 border-[#FF6B6B]" data-llama-editable="true"
+            data-llama-id="9">
+            <!-- Navigation -->
+            <nav class="flex justify-between items-center mb-12" data-llama-editable="true" data-llama-id="10">
+                <div class="text-[#FF6B6B] text-4xl font-bold" data-llama-editable="true" data-llama-id="11">Systek Says
+                </div>
+                <button class="bg-[#FF6B6B] text-white px-6 py-2 rounded-lg shadow-md hover:bg-[#ff5252] transition"
+                    data-llama-editable="true" data-llama-id="12" id="signInBtn">
+                    SIGN IN
+                </button>
+            </nav>
+            <!-- Hero Section -->
+            <div class="flex flex-col md:flex-row justify-between items-center" data-llama-editable="true"
+                data-llama-id="13">
+                <div class="w-full md:w-1/2 mb-8 md:mb-0" data-llama-editable="true" data-llama-id="14">
+                    <p class="text-[#FF6B6B] text-2xl mb-2 text-center" data-llama-id="15">Current score:</p>
+                    <h1 id="currentScore"
+                        class="text-6xl md:text-7xl lg:text-8xl font-bold text-[#2D3047] mb-6 text-center"
+                        data-llama-editable="true" data-llama-id="16">
+                        HOME 82
+                    </h1>
+
+                </div>
+                <div class="w-full md:w-1/3 flex justify-center flex-col space-y-4" data-llama-editable="true"
+                    data-llama-id="18">
+                    <div class="bg-white p-4 rounded-xl shadow-lg border-2 border-[#2D3047]" data-llama-editable="true"
+                        data-llama-id="19">
+                        <h2 class="text-xl font-bold text-[#FF6B6B] mb-4" data-llama-editable="true" data-llama-id="20">
+                            Previous Scores
+                        </h2>
+                        <div id="scoretable" class="space-y-2" data-llama-editable="true" data-llama-id="21">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script data-llama-editable="true" data-llama-id="82">
+        // Vanilla JS for sign in button click event
+        document.getElementById('signInBtn').addEventListener('click', function () {
+            scores.push({ "name": "test", "score": randInt(3,15) });
+            loadScores();
+        });
+    </script>
+    <script>
+        var scores = Array();
+
+        for (var i = 0; i < 10; i++) {
+
+            scores.push({ "name": "Test testesen", "score": randInt(3,15) });
+        }
+        loadScores();
+        document.getElementById("currentScore").innerHTML = "4"
+        function loadScores() {
+            var scoreElement = document.getElementById("scoretable");
+            scoreElement.innerHTML = "";
+            scores.forEach(element => {
+                var scoreEl = addScoreElement(element.name, element.score);
+                scoreElement.appendChild(scoreEl);
+            });
+
+        }
+        function addScoreElement(name, score) {
+            var mainDiv = document.createElement("div");
+            mainDiv.classList = "flex justify-between text-[#2D3047]"
+            var spanName = document.createElement("span");
+            spanName.innerHTML = name;
+            var spanScore = document.createElement("span");
+            spanScore.innerHTML = score;
+            mainDiv.appendChild(spanName);
+            mainDiv.appendChild(spanScore);
+            return mainDiv;
+        }
+        function randInt(min, max) { 
+            return Math.floor(Math.random() * (max - min + 1) + min);
+        }
+
+    </script>
+
+</body>
+
+</html>
