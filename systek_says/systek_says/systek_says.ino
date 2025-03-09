@@ -16,6 +16,14 @@ void sequencePlay(int repeats);
 void Task2code( void * pvParameters );
 void playGameOverSound();
 void playSoundForButton(int button);
+void debugPrintln(const String &message);
+void debugPrintln(int value);
+void debugPrintln(float value);
+void debugPrintln(const char *message);
+void debugPrint(const String &message);
+void debugPrint(int value);
+void debugPrint(float value);
+void debugPrint(const char *message);
 
 #define I2S_NUM         I2S_NUM_0  // Use I2S0
 #define I2S_BCK_IO      26         // Bit Clock
@@ -27,13 +35,16 @@ void playSoundForButton(int button);
 QueueHandle_t frequencyQueue; // Queue to hold frequency commands
 
 const byte SX1509_ADDRESS_KEYS = 0x3E;
-const byte SX1509_ADDRESS_LED_RED = 0x71;
+const byte SX1509_ADDRESS_LED_RED = 0x3F;
+const byte SX1509_ADDRESS_LED_GREEN = 0x71;
 const int DELAY_TIME = 500;
 const int INPUT_TIMEOUT = 3000;
 const byte ARDUINO_INTERRUPT_PIN = 13;
 
 #define KEY_ROWS 4
 #define KEY_COLS 4
+#define DEBUG false
+
 
 int keyMap[4][4] = {
   {1, 5, 9, 13},
@@ -63,6 +74,7 @@ float frequencies[] = {
 
 SX1509 io_keys;
 SX1509 io_red_led;
+SX1509 io_green_led;
 TaskHandle_t Task2;
 
 void setupI2S() {
@@ -125,9 +137,9 @@ void soundTask(void *parameter) {
   while (true) {
     // Wait for a new frequency from the queue
     if (xQueueReceive(frequencyQueue, &frequency, portMAX_DELAY) == pdTRUE) {
-      Serial.print("Playing: ");
-      Serial.print(frequency);
-      Serial.println(" Hz for 1 second");
+      debugPrint("Playing: ");
+      debugPrint(frequency);
+      debugPrintln(" Hz for 1 second");
       generateSound(frequency, 300);  // Play for 1 second
     }
   }
@@ -149,9 +161,20 @@ void setup() {
       ; // If we fail to communicate, loop forever.
   }
   io_red_led.clock(INTERNAL_CLOCK_2MHZ, 4);
+
+  //if (io_green_led.begin(SX1509_ADDRESS_LED_GREEN) == false)
+ // {
+   // Serial.println("Failed to communicate with green led. Check wiring and address of SX1509.");
+   // while (1)
+   //   ; // If we fail to communicate, loop forever.
+  //}
+  //io_green_led.clock(INTERNAL_CLOCK_2MHZ, 4);
+  
   for (int i = 0; i <= 15; i++) {
     io_red_led.pinMode(i, ANALOG_OUTPUT);
+    //io_green_led.pinMode(i, ANALOG_OUTPUT);
     io_red_led.analogWrite(i, 0);
+    //io_green_led.analogWrite(i, 0);
   }
 
 
@@ -167,7 +190,7 @@ void setup() {
   io_keys.keypad(KEY_ROWS, KEY_COLS,
                  sleepTime, scanTime, debounceTime);
   pinMode(ARDUINO_INTERRUPT_PIN, INPUT_PULLUP);
-  randomSeed(analogRead(0));
+  //randomSeed(analogRead(0));
   sequencePlay(5);
 }
 unsigned int previousKeyData = 0;
@@ -181,6 +204,7 @@ std::vector<int> sequence;
 bool gameOver = false;
 
 void sequencePlay(int repeats) {
+  //io_green_led.analogWrite(0, 255);
   for (int y = 0; y < repeats; y++) {
     for (int i = 0; i <= 15; i++) {
       io_red_led.analogWrite(i, 255);
@@ -188,6 +212,7 @@ void sequencePlay(int repeats) {
       io_red_led.analogWrite(i, 0);
     }
   }
+  //io_green_led.analogWrite(0, 0);
   delay(500);
 }
 
@@ -199,8 +224,8 @@ void loop() {
 
   for (int expected : sequence) {
     int inputValue = -1;
-    Serial.print("Expecting user input: ");
-    Serial.println(expected);
+    debugPrint("Forventer user input: ");
+    debugPrintln(expected);
     while (true) {
       if (digitalRead(ARDUINO_INTERRUPT_PIN) == LOW)
       {
@@ -214,10 +239,10 @@ void loop() {
           inputValue = keyMap[row][col];
           blinkButton(inputValue-1);
           playSoundForButton(inputValue);
-          Serial.println((String)"Got input " + inputValue);
+          debugPrintln((String)"Got input " + inputValue);
           delay(30);
           while (io_keys.readKeypad() != 0) {
-            Serial.println("Delaying...");
+            debugPrintln("Delaying...");
             delay(10);
           }
           break;
@@ -231,22 +256,25 @@ void loop() {
     }
   }
   score = score+1;
-  Serial.println((String)"#SCORE:" + score);
   if (gameOver) {
     sequence.clear(); // Reset game
+    Serial.print("-GAMEOVER:");
+    Serial.println(score);
     playGameOverSound();
     sequencePlay(5);
     gameOver = false;
-    Serial.println((String)"#GAMEOVER:" + score);
     score = 0;
+  }else{
+      Serial.print("-SCORE:");
+      Serial.println(score);
   }
   delay(1000);
 }
 
 void lightButton(int pin, int color, int intensity) {
-  Serial.print("Lighting button:");
-  Serial.print(",int:");
-  Serial.println(pin);
+  debugPrint("Lighting button:");
+  debugPrint(",int:");
+  debugPrintln(pin);
   io_red_led.analogWrite(pin, intensity);
 }
 
@@ -294,4 +322,51 @@ int hexCharToDecimal(char hexChar) {
   } else {
     return -1;  // Invalid input
   }
+}
+
+void debugPrintln(const String &message) {
+    if (DEBUG) {
+        Serial.println(message);
+    }
+}
+void debugPrintln(int value) {
+    if (DEBUG) {
+        Serial.println(value);
+    }
+}
+
+void debugPrintln(float value) {
+    if (DEBUG) {
+        Serial.println(value);
+    }
+}
+
+void debugPrintln(const char *message) {
+    if (DEBUG) {
+        Serial.println(message);
+    }
+}
+
+void debugPrint(const String &message) {
+    if (DEBUG) {
+        Serial.print(message);
+    }
+}
+
+void debugPrint(int value) {
+    if (DEBUG) {
+        Serial.print(value);
+    }
+}
+
+void debugPrint(float value) {
+    if (DEBUG) {
+        Serial.print(value);
+    }
+}
+
+void debugPrint(const char *message) {
+    if (DEBUG) {
+        Serial.print(message);
+    }
 }
