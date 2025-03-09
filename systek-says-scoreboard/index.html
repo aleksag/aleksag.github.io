@@ -28,7 +28,7 @@
                 </div>
                 <button class="bg-[#FF6B6B] text-white px-6 py-2 rounded-lg shadow-md hover:bg-[#ff5252] transition"
                     data-llama-editable="true" data-llama-id="12" id="signInBtn">
-                    ADD SCORE
+                    New Player
                 </button>
             </nav>
             <!-- Hero Section -->
@@ -39,7 +39,7 @@
                     <h1 id="currentScore"
                         class="text-6xl md:text-7xl lg:text-8xl font-bold text-[#2D3047] mb-6 text-center"
                         data-llama-editable="true" data-llama-id="16">
-                        HOME 82
+                        -
                     </h1>
 
                 </div>
@@ -58,30 +58,84 @@
         </div>
     </div>
     <script data-llama-editable="true" data-llama-id="82">
-        // Vanilla JS for sign in button click event
         document.getElementById('signInBtn').addEventListener('click', function () {
-            scores.push({ "name": "test", "score": randInt(3,15) });
-            loadScores();
+            //scores.push({ "name": "test", "score": randInt(3,15) });
+            //loadScores();
+            currentPlayer = prompt("Please enter your name");
+            connectSerial();
         });
     </script>
     <script>
-        var scores = Array();
 
-        for (var i = 0; i < 10; i++) {
 
-            scores.push({ "name": "Test testesen", "score": randInt(3,15) });
+        class ScoreStore {
+            constructor() {
+                this.storageKey = "scoreList";
+                this.scores = JSON.parse(localStorage.getItem(this.storageKey)) || [];
+            }
+
+            addScore(name, email, score) {
+                const newEntry = { name, email, score };
+                this.scores.push(newEntry);
+                this.saveToLocalStorage();
+            }
+
+            getScores() {
+                return this.scores;
+            }
+
+            saveToLocalStorage() {
+                localStorage.setItem(this.storageKey, JSON.stringify(this.scores));
+            }
+
+            clearScores() {
+                this.scores = [];
+                localStorage.removeItem(this.storageKey);
+            }
+            getTopScores(limit = 15) {
+                return [...this.scores]
+                    .sort((a, b) => b.score - a.score) // Sort descending by score
+                    .slice(0, limit); // Get top 15
+            }
         }
+
+        let currentPlayer = ""
+        let currentEmail = ""
+        let currentScore = "";
+        let port;
+        let reader;
+        let inputStream;
+        let decoder;
+        let lineBuffer = '';
+
+        var scores = Array();
+        const scoreStore = new ScoreStore();
+
         loadScores();
-        document.getElementById("currentScore").innerHTML = "4"
+        document.getElementById("currentScore").innerHTML = "-"
         function loadScores() {
+            var scoreList = scoreStore.getTopScores(15);;
             var scoreElement = document.getElementById("scoretable");
             scoreElement.innerHTML = "";
-            scores.forEach(element => {
+            scoreList.forEach(element => {
                 var scoreEl = addScoreElement(element.name, element.score);
                 scoreElement.appendChild(scoreEl);
             });
 
         }
+
+        function gameOver(score) {
+            scoreStore.addScore(currentPlayer, currentEmail, currentScore);
+            scoreStore.saveToLocalStorage();
+            document.getElementById("currentScore").innerHTML = "-"
+            location.reload();
+        }
+
+        function newScore(score) {
+            currentScore = score;
+            document.getElementById("currentScore").innerHTML = score;
+        }
+
         function addScoreElement(name, score) {
             var mainDiv = document.createElement("div");
             mainDiv.classList = "flex justify-between text-[#2D3047]"
@@ -93,9 +147,79 @@
             mainDiv.appendChild(spanScore);
             return mainDiv;
         }
-        function randInt(min, max) { 
+        function randInt(min, max) {
             return Math.floor(Math.random() * (max - min + 1) + min);
         }
+
+        async function connectSerial() {
+            port = await navigator.serial.requestPort();
+            await port.open({ baudRate: 115200 });
+
+            console.log(`Connected to ${port.getInfo().usbVendorId}:${port.getInfo().usbProductId}`)
+            // Start reading data from the port
+            inputStream = port.readable;
+            decoder = new TextDecoderStream();
+            reader = inputStream.pipeTo(decoder.writable);
+            readLoop();
+        }
+
+        async function disconnectSerial() {
+            if (port) {
+                console.log("Disconnecting from serial port...");
+
+                try {
+                    await reader.cancel(); 
+                    await port.close(); 
+                    console.log("Serial port disconnected.");
+                } catch (error) {
+                    console.error("Error while disconnecting:", error);
+                }
+
+                port = null; 
+            } else {
+                console.log("No serial port connected.");
+            }
+        }
+        async function readLoop() {
+            const readerStream = decoder.readable.getReader();
+            while (true) {
+                try {
+                    const { value, done } = await readerStream.read();
+                    if (done) {
+                        break;
+                    }
+                    lineBuffer += value;
+                    console.log(value);
+                    processCommands();
+                } catch (error) {
+                    console.error('Read error:', error);
+                    break;
+                }
+            }
+            // Clean up
+            readerStream.releaseLock();
+        }
+
+        function processCommands() {
+            let lines = lineBuffer.split('\n'); // Split the buffer into lines
+            lineBuffer = lines.pop(); // Retain the last incomplete line in the buffer
+            lines.forEach(line => {
+                if (line.trim()) { // Ignore empty lines
+                    if (line.startsWith("-GAMEOVER:")) {
+                        console.log("GAMEOVER");
+                        gameOver(line.replace("-GAMEOVER:", ""));
+                    } else if (line.startsWith("-SCORE:")) {
+                        var score = line.replace("-SCORE:", "");
+                        console.log("SCORE" + score);
+                        newScore(score)
+                    } else {
+                        console.log("Unknown command sent from game" + line);
+                    }
+
+                }
+            });
+        }
+
 
     </script>
 
