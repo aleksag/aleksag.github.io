@@ -57,14 +57,16 @@
             </div>
         </div>
     </div>
+    <button onclick="connectSerial();">Connect</button>
     <script data-llama-editable="true" data-llama-id="82">
         document.getElementById('signInBtn').addEventListener('click', function () {
             //scores.push({ "name": "test", "score": randInt(3,15) });
             //loadScores();
             currentPlayer = prompt("Please enter your name");
-            connectSerial();
+            resetEsp();
         });
     </script>
+
     <script>
 
 
@@ -104,6 +106,7 @@
         let currentScore = "";
         let port;
         let reader;
+        let writer;
         let inputStream;
         let decoder;
         let lineBuffer = '';
@@ -128,7 +131,6 @@
             scoreStore.addScore(currentPlayer, currentEmail, currentScore);
             scoreStore.saveToLocalStorage();
             document.getElementById("currentScore").innerHTML = "-"
-            location.reload();
         }
 
         function newScore(score) {
@@ -160,25 +162,14 @@
             inputStream = port.readable;
             decoder = new TextDecoderStream();
             reader = inputStream.pipeTo(decoder.writable);
+            writer = port.writable.getWriter();
             readLoop();
         }
 
-        async function disconnectSerial() {
-            if (port) {
-                console.log("Disconnecting from serial port...");
-
-                try {
-                    await reader.cancel(); 
-                    await port.close(); 
-                    console.log("Serial port disconnected.");
-                } catch (error) {
-                    console.error("Error while disconnecting:", error);
-                }
-
-                port = null; 
-            } else {
-                console.log("No serial port connected.");
-            }
+        async function resetEsp() {
+            let command = "-RESET"+"\n"; // Ensure newline for ESP32
+            let encodedCommand = new TextEncoder().encode(command);
+            await writer.write(encodedCommand); // Send command to ESP32
         }
         async function readLoop() {
             const readerStream = decoder.readable.getReader();
