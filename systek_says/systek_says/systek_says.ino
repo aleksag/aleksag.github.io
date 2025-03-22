@@ -118,7 +118,8 @@ void generateSound(float frequency, int duration_ms) {
       tremolo_phase += (2.0 * M_PI * tremolo_speed / SAMPLE_RATE);
       if (tremolo_phase >= 2.0 * M_PI) tremolo_phase -= 2.0 * M_PI;
 
-      int16_t value = (int16_t)(32767 * sin(phase) * tremolo);
+      float volume = 0.5; // Adjust volume (0.0 = mute, 1.0 = full)
+      int16_t value = (int16_t)(32767 * volume * sin(phase) * tremolo);
       float phase_increment = 2.0 * M_PI * frequency / SAMPLE_RATE;
       phase += phase_increment;
       if (phase >= 2.0 * M_PI) phase -= 2.0 * M_PI;
@@ -221,6 +222,7 @@ int score = 0;
 void loop() {
   sequence.push_back(random(1, 16)); // Add a random button to sequence
   playSequence();
+  static String receivedData = "";
 
   for (int expected : sequence) {
     int inputValue = -1;
@@ -247,6 +249,22 @@ void loop() {
           }
           break;
         }
+      }
+       if (Serial.available()) {
+        while (Serial.available()) {  
+          char c = Serial.read();    
+          receivedData += c;          
+          if (c == '\n' || c == '\r') {
+            receivedData.trim();  
+
+            // Check if the received command is "-RESET"
+            if (receivedData == "-RESET") {
+              ESP.restart();  
+            }
+            receivedData = "";  // Clear buffer after processing
+          }
+        }
+        delay(30);
       }
       delay(30);
     }
