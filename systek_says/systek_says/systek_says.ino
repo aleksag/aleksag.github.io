@@ -13,7 +13,7 @@ void playSequence();
 bool getUserInput();
 int hexCharToDecimal(char hexChar);
 void sequencePlay(int repeats);
-void Task2code( void * pvParameters );
+void Task2code(void *pvParameters);
 void playGameOverSound();
 void playSoundForButton(int button);
 void debugPrintln(const String &message);
@@ -25,14 +25,15 @@ void debugPrint(int value);
 void debugPrint(float value);
 void debugPrint(const char *message);
 
-#define I2S_NUM         I2S_NUM_0  // Use I2S0
-#define I2S_BCK_IO      26         // Bit Clock
-#define I2S_WS_IO       25         // Word Select (LRCLK)
-#define I2S_DOUT_IO     23         // Data Output (DIN)
-#define SAMPLE_RATE     44100      // CD-quality sample rate
-#define BUFFER_SIZE     512        // DMA buffer size
+#define I2S_NUM I2S_NUM_0  // Use I2S0
+#define I2S_BCK_IO 26      // Bit Clock
+#define I2S_WS_IO 25       // Word Select (LRCLK)
+#define I2S_DOUT_IO 23     // Data Output (DIN)
+#define SAMPLE_RATE 44100  // CD-quality sample rate
+#define BUFFER_SIZE 512    // DMA buffer size
 
-QueueHandle_t frequencyQueue; // Queue to hold frequency commands
+QueueHandle_t frequencyQueue;  // Queue to hold frequency commands
+QueueHandle_t durationQueue;   // Queue to hold frequency commands
 
 const byte SX1509_ADDRESS_KEYS = 0x3E;
 const byte SX1509_ADDRESS_LED_RED = 0x3F;
@@ -47,29 +48,29 @@ const byte ARDUINO_INTERRUPT_PIN = 13;
 
 
 int keyMap[4][4] = {
-  {1, 5, 9, 13},
-  {2, 6, 10, 14},
-  {3, 7, 11, 15},
-  {4, 8, 12, 16}
+  { 1, 5, 9, 13 },
+  { 2, 6, 10, 14 },
+  { 3, 7, 11, 15 },
+  { 4, 8, 12, 16 }
 };
 
 float frequencies[] = {
-    164.81,  // E3
-    174.61,  // F3
-    196.00,  // G3
-    220.00,  // A3
-    246.94,  // B3
-    261.63,  // C4 (Middle C)
-    293.66,  // D4
-    329.63,  // E4
-    349.23,  // F4
-    370.00,  // F#4
-    392.00,  // G4
-    440.00,  // A4 (Standard tuning)
-    493.88,  // B4
-    523.25,  // C5 (1 octave above C4)
-    587.33,  // D5
-    659.26   // E5
+  164.81,  // E3
+  174.61,  // F3
+  196.00,  // G3
+  220.00,  // A3
+  246.94,  // B3
+  261.63,  // C4 (Middle C)
+  293.66,  // D4
+  329.63,  // E4
+  349.23,  // F4
+  370.00,  // F#4
+  392.00,  // G4
+  440.00,  // A4 (Standard tuning)
+  493.88,  // B4
+  523.25,  // C5 (1 octave above C4)
+  587.33,  // D5
+  659.26   // E5
 };
 
 SX1509 io_keys;
@@ -106,8 +107,8 @@ void generateSound(float frequency, int duration_ms) {
   int16_t sample[BUFFER_SIZE * 2];
   float phase = 0.0;
   float tremolo_phase = 0.0;
-  float tremolo_speed = 7.0; // 7Hz tremolo
-  float tremolo_depth = 0.5; // 50% volume variation
+  float tremolo_speed = 7.0;  // 7Hz tremolo
+  float tremolo_depth = 0.5;  // 50% volume variation
 
   int num_samples = (SAMPLE_RATE * duration_ms) / 1000;
 
@@ -118,7 +119,7 @@ void generateSound(float frequency, int duration_ms) {
       tremolo_phase += (2.0 * M_PI * tremolo_speed / SAMPLE_RATE);
       if (tremolo_phase >= 2.0 * M_PI) tremolo_phase -= 2.0 * M_PI;
 
-      float volume = 0.5; // Adjust volume (0.0 = mute, 1.0 = full)
+      float volume = 0.5;  // Adjust volume (0.0 = mute, 1.0 = full)
       int16_t value = (int16_t)(32767 * volume * sin(phase) * tremolo);
       float phase_increment = 2.0 * M_PI * frequency / SAMPLE_RATE;
       phase += phase_increment;
@@ -135,13 +136,15 @@ void generateSound(float frequency, int duration_ms) {
 
 void soundTask(void *parameter) {
   float frequency;
+  float duration;
   while (true) {
     // Wait for a new frequency from the queue
     if (xQueueReceive(frequencyQueue, &frequency, portMAX_DELAY) == pdTRUE) {
-      debugPrint("Playing: ");
+      if (xQueueReceive(durationQueue, &duration, portMAX_DELAY) == pdTRUE)
+        debugPrint("Playing: ");
       debugPrint(frequency);
       debugPrintln(" Hz for 1 second");
-      generateSound(frequency, 300);  // Play for 1 second
+      generateSound(frequency, duration);  // Play for 1 second
     }
   }
 }
@@ -153,24 +156,24 @@ void setup() {
 
   setupI2S();
   frequencyQueue = xQueueCreate(10, sizeof(float));
-  xTaskCreate(soundTask, "SoundTask", 4096, NULL, 1, NULL); // Increased stack size to 4096 bytes
+  durationQueue = xQueueCreate(10, sizeof(float));
+  xTaskCreate(soundTask, "SoundTask", 4096, NULL, 1, NULL);  // Increased stack size to 4096 bytes
 
-  if (io_red_led.begin(SX1509_ADDRESS_LED_RED) == false)
-  {
+  if (io_red_led.begin(SX1509_ADDRESS_LED_RED) == false) {
     Serial.println("Failed to communicate with red led. Check wiring and address of SX1509.");
     while (1)
-      ; // If we fail to communicate, loop forever.
+      ;  // If we fail to communicate, loop forever.
   }
   io_red_led.clock(INTERNAL_CLOCK_2MHZ, 4);
 
   //if (io_green_led.begin(SX1509_ADDRESS_LED_GREEN) == false)
- // {
-   // Serial.println("Failed to communicate with green led. Check wiring and address of SX1509.");
-   // while (1)
-   //   ; // If we fail to communicate, loop forever.
+  // {
+  // Serial.println("Failed to communicate with green led. Check wiring and address of SX1509.");
+  // while (1)
+  //   ; // If we fail to communicate, loop forever.
   //}
   //io_green_led.clock(INTERNAL_CLOCK_2MHZ, 4);
-  
+
   for (int i = 0; i <= 15; i++) {
     io_red_led.pinMode(i, ANALOG_OUTPUT);
     //io_green_led.pinMode(i, ANALOG_OUTPUT);
@@ -179,8 +182,7 @@ void setup() {
   }
 
 
-  if (io_keys.begin(SX1509_ADDRESS_KEYS) == false)
-  {
+  if (io_keys.begin(SX1509_ADDRESS_KEYS) == false) {
     Serial.println("Failed to communicate with keys. Check wiring and address of SX1509(keyboard)");
     while (1)
       ;
@@ -220,7 +222,7 @@ void sequencePlay(int repeats) {
 
 int score = 0;
 void loop() {
-  sequence.push_back(random(1, 16)); // Add a random button to sequence
+  sequence.push_back(random(1, 16));  // Add a random button to sequence
   playSequence();
   static String receivedData = "";
 
@@ -229,19 +231,18 @@ void loop() {
     debugPrint("Forventer user input: ");
     debugPrintln(expected);
     while (true) {
-      if (digitalRead(ARDUINO_INTERRUPT_PIN) == LOW)
-      {
+      if (digitalRead(ARDUINO_INTERRUPT_PIN) == LOW) {
         delay(30);
         unsigned int keyData = io_keys.readKeypad();
         delay(30);
         if (keyData != 0) {
-          io_keys.writeByte(0x15,0x00);
+          io_keys.writeByte(0x15, 0x00);
           byte row = io_keys.getRow(keyData);
           byte col = io_keys.getCol(keyData);
           inputValue = keyMap[row][col];
-          blinkButton(inputValue-1);
+          blinkButton(inputValue - 1);
           playSoundForButton(inputValue);
-          debugPrintln((String)"Got input " + inputValue);
+          debugPrintln((String) "Got input " + inputValue);
           delay(30);
           while (io_keys.readKeypad() != 0) {
             debugPrintln("Delaying...");
@@ -250,16 +251,16 @@ void loop() {
           break;
         }
       }
-       if (Serial.available()) {
-        while (Serial.available()) {  
-          char c = Serial.read();    
-          receivedData += c;          
+      if (Serial.available()) {
+        while (Serial.available()) {
+          char c = Serial.read();
+          receivedData += c;
           if (c == '\n' || c == '\r') {
-            receivedData.trim();  
+            receivedData.trim();
 
             // Check if the received command is "-RESET"
             if (receivedData == "-RESET") {
-              ESP.restart();  
+              ESP.restart();
             }
             receivedData = "";  // Clear buffer after processing
           }
@@ -269,22 +270,22 @@ void loop() {
       delay(30);
     }
     if (inputValue != expected) {
-      gameOver = true; // Wrong input
+      gameOver = true;  // Wrong input
       break;
     }
   }
-  score = score+1;
+  score = score + 1;
   if (gameOver) {
-    sequence.clear(); // Reset game
+    sequence.clear();  // Reset game
     Serial.print("-GAMEOVER:");
     Serial.println(score);
     playGameOverSound();
     sequencePlay(5);
     gameOver = false;
     score = 0;
-  }else{
-      Serial.print("-SCORE:");
-      Serial.println(score);
+  } else {
+    Serial.print("-SCORE:");
+    Serial.println(score);
   }
   delay(1000);
 }
@@ -302,30 +303,54 @@ void blinkButton(int pin) {
   io_red_led.analogWrite(pin, 0);
 }
 
-void playSoundForButton(int btn){
-    float frequency = frequencies[btn];
-    xQueueSend(frequencyQueue, &frequency, portMAX_DELAY);
+void playSoundForButton(int btn) {
+  float frequency = frequencies[btn];
+  float duration = 300.0;
+  xQueueSend(frequencyQueue, &frequency, portMAX_DELAY);
+  xQueueSend(durationQueue, &duration, portMAX_DELAY);
 }
 
 
 void playSequence() {
   for (int btn : sequence) {
-    lightButton(btn - 1, 1, 255); // Light up the button (color 1 assumed)
+    lightButton(btn - 1, 1, 255);  // Light up the button (color 1 assumed)
     float frequency = frequencies[btn];
+    float duration = 300.0;
     xQueueSend(frequencyQueue, &frequency, portMAX_DELAY);
-    delay(DELAY_TIME);
-    lightButton(btn - 1, 0, 0); // Turn off the button
-    delay(DELAY_TIME);
+    xQueueSend(durationQueue, &duration, portMAX_DELAY);
+    delay(DELAY_TIME - (sequence.size() * 20));
+    lightButton(btn - 1, 0, 0);  // Turn off the button
+    delay(DELAY_TIME - (sequence.size() * 20));
   }
 }
 
-
+void sound(float freq, float dur, int pause) {
+  xQueueSend(frequencyQueue, &freq, portMAX_DELAY);
+  xQueueSend(durationQueue, &dur, portMAX_DELAY);
+  delay(pause);
+}
 void playGameOverSound() {
-  float freq[] = {220.0, 440.0, 660.0}; // Frequencies for game over sound
-  int durations[] = {300, 300, 300}; // Durations in milliseconds
+  sound(880.00, 80, 2);
+  sound(784.00, 80, 2);
+  sound(698.46, 80, 2);
+  sound(659.25, 100, 2);
+  sound(587.33, 100, 3);
+  sound(523.25, 100, 3);
+  sound(493.88, 80, 2);
+  sound(440.00, 80, 2);
+  sound(392.00, 80, 2);
+  sound(349.23, 100, 3);
+  sound(329.63, 100, 3);
+  sound(293.66, 120, 5);
+  sound(261.63, 500, 0);
+}
+
+void playGameOverSound2() {
+  float freq[] = { 220.0, 440.0, 660.0 };  // Frequencies for game over sound
+  int durations[] = { 300, 300, 300 };     // Durations in milliseconds
   for (int i = 0; i < 3; i++) {
     xQueueSend(frequencyQueue, &freq[i], portMAX_DELAY);
-    delay(50); // Short pause between notes
+    delay(50);  // Short pause between notes
   }
 }
 
@@ -343,48 +368,48 @@ int hexCharToDecimal(char hexChar) {
 }
 
 void debugPrintln(const String &message) {
-    if (DEBUG) {
-        Serial.println(message);
-    }
+  if (DEBUG) {
+    Serial.println(message);
+  }
 }
 void debugPrintln(int value) {
-    if (DEBUG) {
-        Serial.println(value);
-    }
+  if (DEBUG) {
+    Serial.println(value);
+  }
 }
 
 void debugPrintln(float value) {
-    if (DEBUG) {
-        Serial.println(value);
-    }
+  if (DEBUG) {
+    Serial.println(value);
+  }
 }
 
 void debugPrintln(const char *message) {
-    if (DEBUG) {
-        Serial.println(message);
-    }
+  if (DEBUG) {
+    Serial.println(message);
+  }
 }
 
 void debugPrint(const String &message) {
-    if (DEBUG) {
-        Serial.print(message);
-    }
+  if (DEBUG) {
+    Serial.print(message);
+  }
 }
 
 void debugPrint(int value) {
-    if (DEBUG) {
-        Serial.print(value);
-    }
+  if (DEBUG) {
+    Serial.print(value);
+  }
 }
 
 void debugPrint(float value) {
-    if (DEBUG) {
-        Serial.print(value);
-    }
+  if (DEBUG) {
+    Serial.print(value);
+  }
 }
 
 void debugPrint(const char *message) {
-    if (DEBUG) {
-        Serial.print(message);
-    }
+  if (DEBUG) {
+    Serial.print(message);
+  }
 }
