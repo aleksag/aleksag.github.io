@@ -4,13 +4,51 @@
 <head data-llama-editable="true" data-llama-id="0">
     <meta charset="utf-8" data-llama-editable="true" data-llama-id="1" />
     <meta content="width=device-width, initial-scale=1.0" data-llama-editable="true" data-llama-id="2" name="viewport" />
-    <title data-llama-editable="true" data-llama-id="3">70s Style Scoreboard</title>
+    <title data-llama-editable="true" data-llama-id="3">Systek-says-scoreboard</title>
     <script data-llama-editable="true" data-llama-id="4" src="https://cdn.tailwindcss.com"></script>
     <link data-llama-editable="true" data-llama-id="5" href="https://fonts.cdnfonts.com/css/futura-display" rel="stylesheet" />
     <style data-llama-editable="true" data-llama-id="6">
         body {
             background: linear-gradient(45deg, #FF6B6B, #4ECDC4, #FFD93D);
             font-family: 'Futura Display', sans-serif;
+        }
+
+        @keyframes gameOverText {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            10% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+            80% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0);
+                opacity: 0;
+            }
+        }
+
+        .game-over-text {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 8rem;
+            font-weight: bold;
+            color: #FF6B6B;
+            text-shadow: 4px 4px 0 #2D3047;
+            animation: gameOverText 3s cubic-bezier(0.05, 0, 0.95, 1) forwards;
+            pointer-events: none;
+            z-index: 9999;
+            white-space: nowrap;
         }
     </style>
 </head>
@@ -31,16 +69,15 @@
                         data-llama-editable="true" data-llama-id="12">
                     New Player
                 </button>
-                <!-- Edit Last Player: opens modal pre-filled with last player details -->
-                <button id="editLastBtn"
-                        class="bg-green-500 text-white px-6 py-2 rounded-lg shadow-md hover:bg-green-400 transition"
-                        data-llama-editable="true" data-llama-id="13">
-                    Edit Last Player
-                </button>
                 <button id="connectButton"
                         class="bg-green-500 text-white px-6 py-2 rounded-lg shadow-md hover:bg-green-400 transition"
                         data-llama-editable="true" data-llama-id="13">
                     Connect to game
+                </button>
+                <button id="fullscreenBtn"
+                        class="bg-blue-500 text-white px-6 py-2 rounded-lg shadow-md hover:bg-blue-400 transition"
+                        data-llama-editable="true" data-llama-id="14">
+                    Fullscreen
                 </button>
             </div>
         </nav>
@@ -49,8 +86,9 @@
              data-llama-id="15">
             <div class="w-full md:w-1/2 mb-8 md:mb-0" data-llama-editable="true" data-llama-id="16">
                 <p class="text-[#FF6B6B] text-2xl mb-2 text-center" data-llama-id="17">Current score:</p>
+                <h2 id="currentPlayerName" class="text-2xl text-[#2D3047] mb-2 text-center font-medium"></h2>
                 <h1 id="currentScore"
-                    class="text-6xl md:text-7xl lg:text-8xl font-bold text-[#2D3047] mb-6 text-center"
+                    class="text-7xl md:text-8xl lg:text-9xl font-bold text-[#2D3047] mb-6 text-center"
                     data-llama-editable="true" data-llama-id="18">-</h1>
             </div>
             <div class="w-full md:w-1/3 flex justify-center flex-col space-y-4" data-llama-editable="true"
@@ -145,6 +183,21 @@
         </div>
     </div>
 </div>
+
+<!-- Error Modal -->
+<div id="errorModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
+    <div class="bg-white rounded-lg p-6 w-96">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-red-500">Connection Error</h2>
+            <button id="closeErrorModal" class="text-gray-600 hover:text-gray-800">&times;</button>
+        </div>
+        <p id="errorMessage" class="mb-4 text-gray-700"></p>
+        <div class="flex justify-end">
+            <button id="closeErrorBtn" type="button"
+                    class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-400">Close</button>
+        </div>
+    </div>
+</div>
  
 <!-- Magic Stuff: Contains Simulation & Admin Controls -->
 <div id="magicStuff" class="fixed bottom-4 left-4 bg-white p-4 rounded shadow-lg hidden">
@@ -160,7 +213,13 @@
     <!-- Admin Controls -->
     <div id="magicAdmin">
         <h4 class="font-semibold mb-1">Admin Controls</h4>
-        <button id="editAllBtn" class="bg-purple-500 text-white px-4 py-2 rounded">Edit All Scores</button>
+        <div class="flex space-x-2 mb-2">
+            <button id="editAllBtn" class="bg-purple-500 text-white px-4 py-2 rounded">Edit All Scores</button>
+            <button id="exportCsvBtn" class="bg-green-500 text-white px-4 py-2 rounded">Export CSV</button>
+            <button id="importCsvBtn" class="bg-blue-500 text-white px-4 py-2 rounded">Import CSV</button>
+        </div>
+        <textarea id="csvImportArea" class="w-full h-24 p-2 border rounded hidden" placeholder="Paste CSV data here..."></textarea>
+        <div id="csvImportHelp" class="text-sm text-gray-500 mt-1 hidden">Press Ctrl+Enter to import the data</div>
     </div>
     <button id="hideMagicStuff" class="mt-2 text-sm text-gray-500 underline">Hide Magic stuff</button>
 </div>
@@ -171,19 +230,49 @@
  
 <script data-llama-editable="true" data-llama-id="82">
     // Global variables
-    let currentPlayer = "";
-    let currentPhone = "";
-    let currentEmail = "";
-    let currentScore = "";
-    let port, reader,writer,inputStream, decoder;
+    let currentPlayer = {
+        name: "",
+        phone: "",
+        email: "",
+        score: 0
+    };
+    let port, reader, writer, inputStream, decoder;
     let lineBuffer = "";
+    let isConnected = false;
+    let readerStream = null;  // Add this to track the reader stream
     // Mode for the player modal: "new" (default) or "edit"
     let modalMode = "new";
-    // If editing an existing entry, store its index here.
-    let editingIndex;
     // Set simulationMode to true when testing; set to false for production.
     let simulationMode = true;
- 
+
+    // Fullscreen functionality
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    // Update fullscreen button text based on fullscreen state
+    function updateFullscreenButton() {
+        const fullscreenBtn = document.getElementById("fullscreenBtn");
+        if (document.fullscreenElement) {
+            fullscreenBtn.textContent = "Exit Fullscreen";
+            fullscreenBtn.classList.remove("bg-blue-500", "hover:bg-blue-400");
+            fullscreenBtn.classList.add("bg-red-500", "hover:bg-red-400");
+        } else {
+            fullscreenBtn.textContent = "Fullscreen";
+            fullscreenBtn.classList.remove("bg-red-500", "hover:bg-red-400");
+            fullscreenBtn.classList.add("bg-blue-500", "hover:bg-blue-400");
+        }
+    }
+
+    // Add fullscreen change event listener
+    document.addEventListener("fullscreenchange", updateFullscreenButton);
+
     // ScoreStore class to handle storing scores
     class ScoreStore {
         constructor() {
@@ -258,20 +347,57 @@
  
     // Game functions
     function newScore(score) {
-        currentScore = score;
+        currentPlayer.score = score;
         document.getElementById("currentScore").innerHTML = score;
     }
  
+    function showGameOverText() {
+        const text = document.createElement('div');
+        text.className = 'game-over-text';
+        text.textContent = 'GAME OVER';
+        document.body.appendChild(text);
+        setTimeout(() => text.remove(), 3000);
+    }
+
     function gameOver(score) {
-        // Assign a default name if none was provided
-        if (currentPlayer.trim() === "") {
-            currentPlayer = "Player " + (scoreStore.getScores().length + 1);
+        // Only save score if we have a player name
+        if (currentPlayer.name.trim() !== "") {
+            // Adjust score by subtracting 1
+            const adjustedScore = parseInt(score) - 1;
+            
+            // Check if this player already exists in the score list
+            const existingScores = scoreStore.getScores();
+            const existingPlayerIndex = existingScores.findIndex(
+                entry => entry.name === currentPlayer.name && 
+                         entry.phone === currentPlayer.phone && 
+                         entry.email === currentPlayer.email
+            );
+
+            if (existingPlayerIndex !== -1) {
+                // Update existing player's score only if new score is higher
+                const existingScore = existingScores[existingPlayerIndex].score;
+                if (adjustedScore > existingScore) {
+                    scoreStore.updateScore(existingPlayerIndex, {
+                        name: currentPlayer.name,
+                        phone: currentPlayer.phone,
+                        email: currentPlayer.email,
+                        score: adjustedScore
+                    });
+                }
+            } else {
+                // Add new player score
+                scoreStore.addScore(currentPlayer.name, currentPlayer.phone, currentPlayer.email, adjustedScore);
+            }
+            scoreStore.saveToLocalStorage();
         }
-        scoreStore.addScore(currentPlayer, currentPhone, currentEmail, currentScore);
-        scoreStore.saveToLocalStorage();
+
+        // Show game over text
+        showGameOverText();
+
         document.getElementById("currentScore").innerHTML = "-";
-        // Reset currentPlayer so next game can get a new default name if needed
-        currentPlayer = "";
+        document.getElementById("currentPlayerName").textContent = "";
+        // Reset current player score
+        currentPlayer.score = 0;
         if (!simulationMode) {
             location.reload();
         } else {
@@ -279,16 +405,100 @@
         }
     }
  
-    // Serial connection (unchanged)
+    // Function to show error modal
+    function showError(message) {
+        const errorModal = document.getElementById("errorModal");
+        const errorMessage = document.getElementById("errorMessage");
+        errorMessage.textContent = message;
+        errorModal.classList.remove("hidden");
+    }
+ 
+    // Function to update UI based on connection state
+    function updateConnectionState(connected) {
+        isConnected = connected;
+        const signInBtn = document.getElementById("signInBtn");
+        const connectButton = document.getElementById("connectButton");
+        
+        signInBtn.disabled = !connected;
+        signInBtn.classList.toggle("opacity-50", !connected);
+        signInBtn.classList.toggle("cursor-not-allowed", !connected);
+        
+        connectButton.textContent = connected ? "Disconnect" : "Connect to game";
+        connectButton.classList.toggle("bg-red-500", connected);
+        connectButton.classList.toggle("hover:bg-red-400", connected);
+        connectButton.classList.toggle("bg-green-500", !connected);
+        connectButton.classList.toggle("hover:bg-green-400", !connected);
+    }
+
+    // Serial connection
     async function connectSerial() {
-        port = await navigator.serial.requestPort();
-        await port.open({ baudRate: 115200 });
-        console.log(`Connected to ${port.getInfo().usbVendorId}:${port.getInfo().usbProductId}`);
-        inputStream = port.readable;
-        decoder = new TextDecoderStream();
-        writer = port.writable.getWriter();
-        reader = inputStream.pipeTo(decoder.writable);
-        readLoop();
+        try {
+            if (isConnected) {
+                // Disconnect
+                try {
+                    // First stop the read loop by canceling the stream
+                    if (readerStream) {
+                        try {
+                            await readerStream.cancel();
+                        } catch (e) {
+                            console.log("Error canceling stream:", e);
+                        }
+                        try {
+                            readerStream.releaseLock();
+                        } catch (e) {
+                            console.log("Error releasing lock:", e);
+                        }
+                        readerStream = null;
+                    }
+
+                    // Then clean up all other resources
+                    if (writer) {
+                        try {
+                            await writer.close();
+                        } catch (e) {
+                            console.log("Error closing writer:", e);
+                        }
+                        writer = null;
+                    }
+
+                    if (port) {
+                        try {
+                            await port.close();
+                        } catch (e) {
+                            console.log("Error closing port:", e);
+                        }
+                        port = null;
+                    }
+
+                    // Clear all other references
+                    inputStream = null;
+                    decoder = null;
+                    reader = null;
+                    lineBuffer = "";
+                    
+                    // Update UI state
+                    updateConnectionState(false);
+                } catch (error) {
+                    console.error("Error during disconnect:", error);
+                    showError("Error while disconnecting. Please try again.");
+                }
+                return;
+            }
+
+            port = await navigator.serial.requestPort();
+            await port.open({ baudRate: 115200 });
+            console.log(`Connected to ${port.getInfo().usbVendorId}:${port.getInfo().usbProductId}`);
+            inputStream = port.readable;
+            decoder = new TextDecoderStream();
+            writer = port.writable.getWriter();
+            reader = inputStream.pipeTo(decoder.writable);
+            updateConnectionState(true);
+            readLoop();
+        } catch (error) {
+            console.error("Connection error:", error);
+            updateConnectionState(false);
+            showError("Failed to connect to the game. Please make sure the device is connected and try again.");
+        }
     }
 
     async function resetEsp() {
@@ -300,20 +510,38 @@
  
  
     async function readLoop() {
-        const readerStream = decoder.readable.getReader();
-        while (true) {
-            try {
+        try {
+            if (!decoder || !decoder.readable) {
+                console.error("Decoder or readable stream not available");
+                return;
+            }
+            readerStream = decoder.readable.getReader();
+            while (true) {
                 const { value, done } = await readerStream.read();
-                if (done) break;
+                if (done) {
+                    console.log("Reader stream closed");
+                    break;
+                }
                 lineBuffer += value;
                 console.log(value);
                 processCommands();
-            } catch (error) {
-                console.error("Read error:", error);
-                break;
+            }
+        } catch (error) {
+            console.error("Read error:", error);
+            if (isConnected) {
+                showError("Lost connection to the game. Please reconnect.");
+                updateConnectionState(false);
+            }
+        } finally {
+            if (readerStream) {
+                try {
+                    readerStream.releaseLock();
+                } catch (e) {
+                    console.log("Error releasing lock in readLoop:", e);
+                }
+                readerStream = null;
             }
         }
-        readerStream.releaseLock();
     }
  
     function processCommands() {
@@ -354,24 +582,6 @@
         connectSerial();
     });
  
-    // Open modal for editing the last player's details
-    document.getElementById("editLastBtn").addEventListener("click", function () {
-        const scores = scoreStore.getScores();
-        if (scores.length === 0) {
-            alert("No previous player details found.");
-            return;
-        }
-        modalMode = "edit";
-        // Edit the last entry in the scoreStore array
-        editingIndex = scores.length - 1;
-        const lastEntry = scores[editingIndex];
-        document.getElementById("playerModalTitle").innerText = "Edit Last Player";
-        document.getElementById("playerName").value = lastEntry.name;
-        document.getElementById("playerPhone").value = lastEntry.phone;
-        document.getElementById("playerEmail").value = lastEntry.email;
-        document.getElementById("playerModal").classList.remove("hidden");
-    });
- 
     // Close modal with Cancel or Close icon
     document.getElementById("cancelBtn").addEventListener("click", () => {
         document.getElementById("playerModal").classList.add("hidden");
@@ -385,34 +595,27 @@
             document.getElementById("playerModal").classList.add("hidden");
             document.getElementById("adminModal").classList.add("hidden");
             document.getElementById("confirmDeleteModal").classList.add("hidden");
+            document.getElementById("errorModal").classList.add("hidden");
         }
     });
  
-    // Handle form submission for New Player / Edit Last Player
+    // Handle form submission for New Player
     document.getElementById("playerForm").addEventListener("submit", function (event) {
         event.preventDefault();
         const nameVal = document.getElementById("playerName").value;
         const phoneVal = document.getElementById("playerPhone").value;
         const emailVal = document.getElementById("playerEmail").value;
-        if (modalMode === "new") {
-            currentPlayer = nameVal;
-            currentPhone = phoneVal;
-            currentEmail = emailVal;
-            document.getElementById("playerModal").classList.add("hidden");
-            resetEsp();
-        } else if (modalMode === "edit") {
-            // Update the last player's details
-            if (typeof editingIndex !== "undefined") {
-                scoreStore.updateScore(editingIndex, {
-                    name: nameVal,
-                    phone: phoneVal,
-                    email: emailVal,
-                });
-                loadScores();
-            }
-            document.getElementById("playerModal").classList.add("hidden");
-            modalMode = "new";
-        }
+        
+        currentPlayer.name = nameVal;
+        currentPlayer.phone = phoneVal;
+        currentPlayer.email = emailVal;
+        currentPlayer.score = 0;
+        
+        // Update the current player name display
+        document.getElementById("currentPlayerName").textContent = nameVal;
+        
+        document.getElementById("playerModal").classList.add("hidden");
+        resetEsp();
     });
  
     // -------------------------------
@@ -514,8 +717,99 @@
     });
  
     document.getElementById("simulateGameOverBtn").addEventListener("click", function () {
-        gameOver(currentScore);
-        console.log("Simulated game over with score: " + currentScore);
+        gameOver(currentPlayer.score);
+        console.log("Simulated game over with score: " + currentPlayer.score);
+    });
+
+    // CSV Export functionality
+    document.getElementById("exportCsvBtn").addEventListener("click", function() {
+        const scores = scoreStore.getScores();
+        const csvContent = [
+            // Header row
+            ["Name", "Phone", "Email", "Score"].join(","),
+            // Data rows
+            ...scores.map(score => [
+                score.name,
+                score.phone,
+                score.email,
+                score.score
+            ].join(","))
+        ].join("\n");
+
+        // Create timestamp in format YYYY-MM-DD_HH-MM-SS
+        const now = new Date();
+        const timestamp = now.toISOString()
+            .replace(/T/, '_')
+            .replace(/\..+/, '')
+            .replace(/:/g, '-');
+
+        // Create and trigger download
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `systek-says-scores_${timestamp}.csv`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+
+    // CSV Import functionality
+    document.getElementById("importCsvBtn").addEventListener("click", function() {
+        const textarea = document.getElementById("csvImportArea");
+        const helpText = document.getElementById("csvImportHelp");
+        textarea.classList.toggle("hidden");
+        helpText.classList.toggle("hidden");
+        if (!textarea.classList.contains("hidden")) {
+            textarea.focus();
+        }
+    });
+
+    // Handle CSV import submission
+    document.getElementById("csvImportArea").addEventListener("keydown", function(e) {
+        if (e.key === "Enter" && e.ctrlKey) {
+            const csvData = this.value.trim();
+            try {
+                const rows = csvData.split("\n").map(row => row.split(","));
+                const header = rows[0];
+                
+                // Validate header
+                if (header.length !== 4 || 
+                    header[0].toLowerCase() !== "name" ||
+                    header[1].toLowerCase() !== "phone" ||
+                    header[2].toLowerCase() !== "email" ||
+                    header[3].toLowerCase() !== "score") {
+                    throw new Error("Invalid CSV format. Expected columns: Name, Phone, Email, Score");
+                }
+
+                // Process data rows
+                const newScores = rows.slice(1).map(row => ({
+                    name: row[0].trim(),
+                    phone: row[1].trim(),
+                    email: row[2].trim(),
+                    score: parseInt(row[3].trim())
+                }));
+
+                // Validate data
+                if (newScores.some(score => isNaN(score.score))) {
+                    throw new Error("Invalid score values found in CSV");
+                }
+
+                // Update score store
+                scoreStore.scores = newScores;
+                scoreStore.saveToLocalStorage();
+                loadScores();
+
+                // Clear and hide textarea and help text
+                this.value = "";
+                this.classList.add("hidden");
+                document.getElementById("csvImportHelp").classList.add("hidden");
+                alert("Scores imported successfully!");
+            } catch (error) {
+                alert("Error importing CSV: " + error.message);
+            }
+        }
     });
  
     // -------------------------------
@@ -530,9 +824,22 @@
         document.getElementById("magicStuff").classList.add("hidden");
     });
  
+    // Error modal close buttons
+    document.getElementById("closeErrorModal").addEventListener("click", () => {
+        document.getElementById("errorModal").classList.add("hidden");
+    });
+    document.getElementById("closeErrorBtn").addEventListener("click", () => {
+        document.getElementById("errorModal").classList.add("hidden");
+    });
+ 
     // Initial load of scores
     loadScores();
     document.getElementById("currentScore").innerHTML = "-";
+    // Initialize connection state
+    updateConnectionState(false);
+
+    // Add fullscreen button event listener
+    document.getElementById("fullscreenBtn").addEventListener("click", toggleFullscreen);
 </script>
 </body>
  
