@@ -1,0 +1,28 @@
+type: custom:button-card
+name: |
+  [[[var header =  `<div style='display: flex;
+                         padding: 0px 5px 0px 5px;
+                         align-items: center;
+                         background: transparent;'>
+     <marquee>
+     <span style='color: var(--primary-color);align-items: center;'>
+     `
+     
+     var footer = `</span>
+     </marquee>`
+     var news = states['sensor.nrk_feed'].attributes.entries;
+     var text = "";
+     var spacer = ".";
+     for(var i = 0 ; i < 20;i++){
+        spacer = spacer+"&nbsp";
+     }
+     for(var i = 0 ; i < news.length;i++){
+       if(i == 0){
+         text = news[i].title;
+       }else{
+         text = text + spacer+news[i].title;
+       }
+     }
+     return header+text+footer;
+     ]]]
+
