@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SVG Layers – Wing Flap</title>
+    <object style="width:10%;" id="brevdue" type="image/svg+xml" data="brevdue.svg"></object>
+    <script>
+        document.getElementById("brevdue").addEventListener("load", () => {
+            const svgDoc = document.getElementById("brevdue").contentDocument;
+            const venstre = svgDoc.getElementById("VenstreVinge");
+            const hoyre = svgDoc.getElementById("HoyreVinge");
+
+
+            venstre.style.transformOrigin = `70% 70%`;
+            hoyre.style.transformOrigin = `50% 60%`;
+
+            hoyre.animate([{ transform: "rotate(-3deg)" }, { transform: "rotate(9deg)" }, { transform: "rotate(-3deg)" }],
+                { duration: 1800, iterations: Infinity, easing: "ease-in-out" });
+            venstre.animate([{ transform: "rotate(6deg)" }, { transform: "rotate(-18deg)" }, { transform: "rotate(6deg)" }],
+                { duration: 1800, iterations: Infinity, easing: "ease-in-out" });
+        });
+
+
+    </script>
+    </body>
+
+</html>
