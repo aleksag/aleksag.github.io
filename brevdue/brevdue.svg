@@ -57,4 +57,36 @@
         inkscape:label="Konvolutt" />
     </g>
   </g>
+  <style>
+    /* Default (no animation) */
+    #VenstreVinge, #HoyreVinge {
+      transform-origin: 70% 70%;
+      transform-box: fill-box; /* ensures transform-origin is relative to shape */
+    }
+
+    #HoyreVinge {
+      transform-origin: 50% 60%;
+    }
+
+    /* On hover over the whole SVG */
+    svg:hover #VenstreVinge {
+      animation: venstreFlap 1.8s ease-in-out infinite;
+    }
+
+    svg:hover #HoyreVinge {
+      animation: hoyreFlap 1.8s ease-in-out infinite;
+    }
+
+    @keyframes venstreFlap {
+      0%   { transform: rotate(6deg); }
+      50%  { transform: rotate(-18deg); }
+      100% { transform: rotate(6deg); }
+    }
+
+    @keyframes hoyreFlap {
+      0%   { transform: rotate(-3deg); }
+      50%  { transform: rotate(9deg); }
+      100% { transform: rotate(-3deg); }
+    }
+  </style>
 </svg>
