@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Zombies Aren't Real — web clone</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{
+    --bg:#0c0f0c; --panel:#141a14; --panel2:#1b241b; --line:#2a362a;
+    --ink:#d9e8d9; --dim:#8aa08a; --green:#5cff87; --acid:#9dff3c;
+    --red:#ff5a5a; --amber:#ffc34d; --blue:#6bc6ff; --purple:#c58bff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI",system-ui,Roboto,Helvetica,Arial,sans-serif;overflow:hidden;
+    -webkit-user-select:none;user-select:none;}
+  #map{position:absolute;inset:0;background:#0c0f0c;z-index:0;}
+  #fx{position:absolute;inset:0;z-index:400;pointer-events:none;}
+  .leaflet-container{background:#0c0f0c;}
+  /* darken standard OSM tiles into a night look (keyless) */
+  .leaflet-tile-pane{filter:invert(1) hue-rotate(185deg) brightness(.82) contrast(.9) saturate(.75);}
+
+  /* --- Top HUD --- */
+  #hud{position:absolute;top:0;left:0;right:0;z-index:500;display:flex;gap:8px;
+    padding:8px;align-items:center;flex-wrap:wrap;
+    background:linear-gradient(#0c0f0cdd,#0c0f0c00);pointer-events:none;}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:6px 11px;min-width:64px;pointer-events:auto;box-shadow:0 2px 10px #0008;}
+  .stat .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+  .stat .v{font-size:18px;font-weight:800;line-height:1.1}
+  .v.money{color:var(--acid)} .v.saved{color:var(--green)} .v.lost{color:var(--red)}
+  .v.zombies{color:var(--amber)} .v.wave{color:var(--blue)}
+  #title{font-weight:900;letter-spacing:.02em;margin-right:auto;pointer-events:auto;
+    text-shadow:0 0 18px #5cff8755;padding:4px 6px}
+  #title b{color:var(--green)} #title small{display:block;font-weight:600;color:var(--dim);font-size:10px}
+
+  /* --- Build toolbar --- */
+  #dock{position:absolute;left:0;right:0;bottom:0;z-index:500;display:flex;gap:6px;
+    padding:8px;justify-content:center;flex-wrap:wrap;
+    background:linear-gradient(#0c0f0c00,#0c0f0cee);}
+  .tool{position:relative;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:7px 10px;min-width:76px;cursor:pointer;text-align:center;
+    transition:.12s;box-shadow:0 3px 10px #0006}
+  .tool:hover{border-color:var(--green);transform:translateY(-2px)}
+  .tool.sel{border-color:var(--green);background:#16331f;box-shadow:0 0 0 2px #5cff8755}
+  .tool.disabled{opacity:.4;cursor:not-allowed;transform:none;border-color:var(--line)}
+  .tool .ic{font-size:20px;line-height:1}
+  .tool .nm{font-size:11px;font-weight:700;margin-top:2px}
+  .tool .ct{font-size:11px;font-weight:800;color:var(--acid)}
+  .tool .cd{position:absolute;inset:0;background:#0c0f0ccc;border-radius:12px;
+    display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--amber);
+    display:none}
+  .tool kbd{position:absolute;top:3px;right:6px;font-size:9px;color:var(--dim)}
+
+  /* --- Side controls --- */
+  #side{position:absolute;right:8px;top:70px;z-index:500;display:flex;flex-direction:column;gap:6px}
+  .btn{background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--ink);
+    padding:8px 10px;font-weight:700;cursor:pointer;font-size:13px;transition:.12s}
+  .btn:hover{border-color:var(--green)}
+  .btn.primary{background:#16331f;border-color:var(--green);color:var(--green)}
+  .btn.danger{border-color:#5a2a2a;color:var(--red)}
+
+  /* --- Hint / phase banner --- */
+  #banner{position:absolute;left:50%;top:60px;transform:translateX(-50%);z-index:500;
+    background:#0c0f0ccc;border:1px solid var(--line);border-radius:999px;padding:7px 16px;
+    font-weight:700;font-size:13px;color:var(--ink);pointer-events:none;white-space:nowrap;
+    box-shadow:0 4px 18px #0008}
+  #banner b{color:var(--green)}
+
+  /* --- Modal / start screen --- */
+  #modal{position:absolute;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;
+    background:#05070599;backdrop-filter:blur(3px)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;
+    width:min(560px,92vw);max-height:90vh;overflow:auto;padding:22px;box-shadow:0 20px 60px #000c}
+  .card h1{margin:0 0 2px;font-size:26px}
+  .card h1 b{color:var(--green);text-shadow:0 0 22px #5cff8766}
+  .card p{color:var(--dim);margin:6px 0 14px;line-height:1.5;font-size:14px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .city{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:9px;cursor:pointer;text-align:center;font-weight:700;transition:.12s;font-size:13px}
+  .city:hover{border-color:var(--green);color:var(--green)}
+  .search{display:flex;gap:8px;margin:8px 0}
+  .search input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    color:var(--ink);padding:10px;font-size:14px;outline:none}
+  .search input:focus{border-color:var(--green)}
+  .legend{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;margin:12px 0;font-size:12.5px;color:var(--dim)}
+  .legend b{color:var(--ink)}
+  .big{width:100%;padding:13px;font-size:16px;font-weight:800;margin-top:8px}
+  .end-stat{display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px solid var(--line);font-size:14px}
+  .end-stat b{font-size:16px}
+  .muted{color:var(--dim);font-size:12px}
+  a{color:var(--green)}
+  .leaflet-control-attribution{font-size:9px;background:#0c0f0caa!important;color:#6a7a6a!important}
+  .leaflet-control-attribution a{color:#8aa08a!important}
+  @media (max-width:600px){ .tool{min-width:62px;padding:6px 7px} .tool .nm{font-size:10px} }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<canvas id="fx"></canvas>
+
+<div id="hud">
+  <div id="title">ZOMBIES <b>AREN'T REAL</b><small>web clone · openstreetmap</small></div>
+  <div class="stat"><div class="k">Cash</div><div class="v money" id="s-money">$0</div></div>
+  <div class="stat"><div class="k">Saved</div><div class="v saved" id="s-saved">0</div></div>
+  <div class="stat"><div class="k">Lost</div><div class="v lost" id="s-lost">0</div></div>
+  <div class="stat"><div class="k">Zombies</div><div class="v zombies" id="s-zom">0</div></div>
+  <div class="stat"><div class="k">Wave</div><div class="v wave" id="s-wave">0/0</div></div>
+</div>
+
+<div id="banner">Loading…</div>
+
+<div id="side">
+  <button class="btn primary" id="b-wave">▶ Start Wave</button>
+  <button class="btn" id="b-pause">⏸ Pause</button>
+  <button class="btn" id="b-speed">» 1×</button>
+  <button class="btn" id="b-sell" title="Select a placed unit then press to sell">💲 Sell: off</button>
+  <button class="btn" id="b-sound">🔊</button>
+  <button class="btn danger" id="b-restart">↺ Restart</button>
+</div>
+
+<div id="dock"></div>
+
+<div id="modal">
+  <div class="card">
+    <h1>ZOMBIES <b>AREN'T REAL</b></h1>
+    <p>A quick-spreading infection is about to break out in a real-world city. From a bird's-eye view, spend your limited budget on soldiers, turrets, mortars and air strikes. <b>Contain the horde and save as many civilians as you can.</b></p>
+
+    <div class="muted">Pick a city to defend:</div>
+    <div class="row" id="cityRow"></div>
+    <div class="search">
+      <input id="cityInput" placeholder="…or search any city / place" />
+      <button class="btn primary" id="cityGo">Search</button>
+    </div>
+    <div class="muted" id="searchMsg"></div>
+
+    <div class="legend">
+      <div>🟢 <b>Zombie</b> — infects civilians</div>
+      <div>🔵 <b>Civilian</b> — save them!</div>
+      <div>🎯 <b>Sniper</b> — long range, single shot</div>
+      <div>🔫 <b>Turret</b> — fast, short range</div>
+      <div>💥 <b>Mortar</b> — splash (hurts civvies!)</div>
+      <div>🛡️ <b>Garrison</b> — strong, multi-target</div>
+      <div>🧱 <b>Barricade</b> — blocks the horde</div>
+      <div>🏳️ <b>Safe Zone</b> — rescues civilians</div>
+    </div>
+
+    <button class="btn primary big" id="startBtn" disabled>Choose a city first</button>
+    <p class="muted">Tip: place units during the calm, press <b>Start Wave</b> when ready. Zombies that touch a civilian turn them. Earn cash per kill. Clear all waves to win — score is civilians saved.</p>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   ZOMBIES AREN'T REAL — web clone
+   Real-world map (Leaflet + OpenStreetMap) + canvas entity layer.
+   Horde / tower-defense: contain a spreading infection, save civilians.
+   ============================================================ */
+
+/* ---------- geo helpers (work in metres, render in lat/lng) ---------- */
+const M_PER_DEG_LAT = 111320;
+const mPerDegLng = lat => 111320 * Math.cos(lat * Math.PI/180);
+function distM(aLat,aLng,bLat,bLng){
+  const my=(aLat-bLat)*M_PER_DEG_LAT, mx=(aLng-bLng)*mPerDegLng(aLat);
+  return Math.hypot(mx,my);
+}
+// move entity `e` toward (tLat,tLng) by `metres`; returns remaining distance
+function moveToward(e,tLat,tLng,metres){
+  const my=(tLat-e.lat)*M_PER_DEG_LAT, mx=(tLng-e.lng)*mPerDegLng(e.lat);
+  const d=Math.hypot(mx,my)||1e-9, step=Math.min(metres,d);
+  e.lat+=(my/d*step)/M_PER_DEG_LAT;
+  e.lng+=(mx/d*step)/mPerDegLng(e.lat);
+  return d-step;
+}
+// shift lat/lng by a metre vector
+function offsetLL(lat,lng,dxE,dyN){
+  return [lat+dyN/M_PER_DEG_LAT, lng+dxE/mPerDegLng(lat)];
+}
+const rand=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+
+/* ---------- spatial hash (rebuilt each frame) for fast neighbour queries ---------- */
+const HCELL=0.002;                               // ~222 m per cell
+const ringsFor=metres=>Math.max(1,Math.ceil(metres/(HCELL*M_PER_DEG_LAT)));
+function hashOf(arr){ const m=new Map();
+  for(const e of arr){ const k=Math.round(e.lat/HCELL)+","+Math.round(e.lng/HCELL);
+    let a=m.get(k); if(!a){a=[];m.set(k,a);} a.push(e); } return m; }
+function near(m,lat,lng,rings,out){ out.length=0;
+  const ci=Math.round(lat/HCELL), cj=Math.round(lng/HCELL);
+  for(let i=-rings;i<=rings;i++)for(let j=-rings;j<=rings;j++){
+    const a=m.get((ci+i)+","+(cj+j)); if(a) for(let k=0;k<a.length;k++) out.push(a[k]); }
+  return out; }
+let zGrid=new Map(), cGrid=new Map();            // zombie & civilian grids for this frame
+
+/* ---------- unit definitions ---------- */
+const UNITS = {
+  sniper:   {ic:"🎯", nm:"Sniper",   cost:120, range:340, dmg:70,  rate:1.6,  hp:60,  civRisk:0, ammo:40,  on:"building", noLOS:1, color:"#6bc6ff", key:"1"},
+  turret:   {ic:"🔫", nm:"Turret",   cost:80,  range:150, dmg:11,  rate:0.18, hp:90,  civRisk:0, ammo:100, color:"#ffc34d", key:"2"},
+  mortar:   {ic:"💥", nm:"Mortar",   cost:170, range:430, dmg:50,  rate:2.8,  hp:55,  civRisk:1, splash:48, ammo:25, on:"building", color:"#ff8a3c", key:"3"},
+  garrison: {ic:"🛡️", nm:"Garrison", cost:150, range:95,  dmg:16,  rate:0.3,  hp:260, civRisk:0, multi:3, ammo:160, on:"building", color:"#9dff3c", key:"4"},
+  wall:     {ic:"🧱", nm:"Barricade",cost:40,  range:0,   dmg:0,   rate:0,    hp:400, civRisk:0, wallR:16, color:"#b9966b", key:"5"},
+  safe:     {ic:"🏳️", nm:"Safe Zone",cost:40,  range:0,   dmg:0,   rate:0,    hp:9999,civRisk:0, poly:1, basecost:25, kcost:0.005, minArea:300, color:"#5cff87", key:"6"},
+};
+const AIR = {bomber:{ic:"✈️", nm:"Air Strike", cost:260, radius:125, dmg:260, cool:22, key:"7"}};
+
+/* ---------- tunables ---------- */
+const CFG = {
+  startCash:340, bounty:9, infectBounty:0,
+  civCount:1400, civSpeed:4.2, civSight:650, civWander:1.1, civFlee:1.8, civSeek:1400,
+  zSpeed:18, zSight:470, zChase:150, zSmell:55, zMelee:6, zMeleeDmg:16, zBaseHp:40, zHpPerWave:9,
+  waves:8, spawnRadius:60, fieldRadius:950,
+  loseFrac:0.75,
+};
+
+/* ---------- map / state ---------- */
+let map, originLL=null, origin=null; // origin = {lat,lng}
+const S = {
+  phase:"menu",          // menu | planning | wave | won | lost
+  wave:0, waveActive:false, spawnQueue:0, spawnTimer:0,
+  cash:CFG.startCash, saved:0, lost:0, kills:0, civInit:CFG.civCount,
+  speed:1, paused:false, sound:true, sellMode:false,
+  selTool:null, selUnit:null, mouseLL:null, draw:null,
+  airCool:0,
+};
+const zombies=[], civs=[], defs=[], fx=[];
+
+/* ============================================================
+   ROAD NETWORK — real streets from OpenStreetMap (Overpass API)
+   Entities navigate a graph of road nodes so they follow streets.
+   ============================================================ */
+const G={ready:false, nodes:new Map(), ids:[], grid:new Map(), cell:0.0016};
+const gcell=(lat,lng)=>Math.round(lat/G.cell)+","+Math.round(lng/G.cell);
+
+/* ---------- buildings: line-of-sight occlusion + rooftop unit slots ---------- */
+const B={polys:[], grid:new Map(), cent:[], occupied:new Set()};
+function buildBuildingIndex(polys){
+  B.polys=polys; B.grid=new Map(); B.cent=[]; B.occupied=new Set();
+  for(let bi=0;bi<polys.length;bi++){ const poly=polys[bi];
+    let mnla=1e9,mxla=-1e9,mnln=1e9,mxln=-1e9,sla=0,sln=0;
+    for(const p of poly){ if(p[0]<mnla)mnla=p[0]; if(p[0]>mxla)mxla=p[0];
+      if(p[1]<mnln)mnln=p[1]; if(p[1]>mxln)mxln=p[1]; sla+=p[0]; sln+=p[1]; }
+    B.cent[bi]=[sla/poly.length, sln/poly.length];
+    const ci0=Math.round(mnla/G.cell),ci1=Math.round(mxla/G.cell);
+    const cj0=Math.round(mnln/G.cell),cj1=Math.round(mxln/G.cell);
+    for(let i=ci0;i<=ci1;i++)for(let j=cj0;j<=cj1;j++){ const k=i+","+j;
+      let a=B.grid.get(k); if(!a){a=[];B.grid.set(k,a);} a.push(bi); }
+  }
+}
+/* ---------- water: zombies can't walk across it (must use bridges/roads) ---------- */
+const W={polys:[], grid:new Map()};
+function buildWaterIndex(polys){
+  W.polys=polys; W.grid=new Map();
+  for(let wi=0;wi<polys.length;wi++){ const poly=polys[wi];
+    let mnla=1e9,mxla=-1e9,mnln=1e9,mxln=-1e9;
+    for(const p of poly){ if(p[0]<mnla)mnla=p[0]; if(p[0]>mxla)mxla=p[0];
+      if(p[1]<mnln)mnln=p[1]; if(p[1]>mxln)mxln=p[1]; }
+    const ci0=Math.round(mnla/G.cell),ci1=Math.round(mxla/G.cell);
+    const cj0=Math.round(mnln/G.cell),cj1=Math.round(mxln/G.cell);
+    for(let i=ci0;i<=ci1;i++)for(let j=cj0;j<=cj1;j++){ const k=i+","+j;
+      let a=W.grid.get(k); if(!a){a=[];W.grid.set(k,a);} a.push(wi); }
+  }
+}
+// does the straight segment a→b cross (or end in) water?
+function crossesWater(aLat,aLng,bLat,bLng){
+  if(!W.polys.length) return false;
+  const cand=new Set();
+  const steps=Math.max(2,Math.ceil(distM(aLat,aLng,bLat,bLng)/90));
+  for(let s=0;s<=steps;s++){ const t=s/steps;
+    const la=aLat+(bLat-aLat)*t, ln=aLng+(bLng-aLng)*t;
+    const arr=W.grid.get(gcell(la,ln)); if(arr) for(const wi of arr) cand.add(wi);
+  }
+  for(const wi of cand){ const poly=W.polys[wi]; const nP=poly.length;
+    if(pointInPoly(bLat,bLng,poly)) return true;
+    for(let i=0;i<nP;i++){ const p=poly[i], q=poly[(i+1)%nP];
+      if(segInt(aLng,aLat,bLng,bLat, p[1],p[0], q[1],q[0])) return true; }
+  }
+  return false;
+}
+
+// Safe zone is a user-drawn polygon (vertices clicked on the map).
+function polyArea(poly){                    // area in m² (shoelace, equirectangular)
+  if(poly.length<3) return 0;
+  const mlng=mPerDegLng(poly[0][0]); let a=0;
+  for(let i=0;i<poly.length;i++){ const p=poly[i], q=poly[(i+1)%poly.length];
+    a += (p[1]*mlng)*(q[0]*M_PER_DEG_LAT) - (q[1]*mlng)*(p[0]*M_PER_DEG_LAT); }
+  return Math.abs(a)/2;
+}
+function safeCostPoly(poly){ const u=UNITS.safe; return Math.round(u.basecost + u.kcost*polyArea(poly)); }
+function centroidOf(poly){ let la=0,ln=0; for(const p of poly){la+=p[0];ln+=p[1];} return [la/poly.length,ln/poly.length]; }
+function inSafe(sz,lat,lng){ return sz.poly ? pointInPoly(lat,lng,sz.poly) : false; }
+
+// is a point inside a polygon? (ray casting; poly = [[lat,lng],...])
+function pointInPoly(lat,lng,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const yi=poly[i][0],xi=poly[i][1], yj=poly[j][0],xj=poly[j][1];
+    if(((yi>lat)!==(yj>lat)) && (lng<(xj-xi)*(lat-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+// building under/near a point: the one containing it, else nearest within ~70 m
+function nearestBuilding(lat,lng){
+  if(!B.polys.length) return -1;
+  const cand=new Set();
+  const ci=Math.round(lat/G.cell), cj=Math.round(lng/G.cell);
+  for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){ const a=B.grid.get((ci+i)+","+(cj+j));
+    if(a) for(const bi of a) cand.add(bi); }
+  for(const bi of cand) if(pointInPoly(lat,lng,B.polys[bi])) return bi;
+  let best=-1,bd=70;
+  for(const bi of cand){ const c=B.cent[bi]; const dd=distM(lat,lng,c[0],c[1]); if(dd<bd){bd=dd;best=bi;} }
+  return best;
+}
+// do two segments (a-b) and (c-d) cross? (x,y) coords
+function segInt(ax,ay,bx,by,cx,cy,dx,dy){
+  const d=(bx-ax)*(dy-cy)-(by-ay)*(dx-cx); if(d===0) return false;
+  const t=((cx-ax)*(dy-cy)-(cy-ay)*(dx-cx))/d;
+  const u=((cx-ax)*(by-ay)-(cy-ay)*(bx-ax))/d;
+  return t>=0&&t<=1&&u>=0&&u<=1;
+}
+// clear line of sight between two lat/lng points? (false if any building blocks it)
+function losClear(aLat,aLng,bLat,bLng,skipBi){
+  if(!B.polys.length) return true;                 // no building data → everything visible
+  const cand=new Set();
+  const steps=Math.max(2,Math.ceil(distM(aLat,aLng,bLat,bLng)/90));
+  for(let s=0;s<=steps;s++){ const t=s/steps;
+    const la=aLat+(bLat-aLat)*t, ln=aLng+(bLng-aLng)*t;
+    const arr=B.grid.get(gcell(la,ln)); if(arr) for(const bi of arr) cand.add(bi);
+  }
+  for(const bi of cand){ if(bi===skipBi) continue;   // a rooftop unit's own building doesn't block it
+    const poly=B.polys[bi]; const nP=poly.length;
+    for(let i=0;i<nP;i++){ const p=poly[i], q=poly[(i+1)%nP];
+      if(segInt(aLng,aLat,bLng,bLat, p[1],p[0], q[1],q[0])) return false; }
+  }
+  return true;
+}
+
+function snap(lat,lng){            // nearest road node to a point
+  if(!G.ready) return null;
+  const ci=Math.round(lat/G.cell), cj=Math.round(lng/G.cell);
+  let best=null,bd=Infinity;
+  const scan=R=>{ for(let i=-R;i<=R;i++)for(let j=-R;j<=R;j++){
+    const arr=G.grid.get((ci+i)+","+(cj+j)); if(!arr) continue;
+    for(const id of arr){ const n=G.nodes.get(id); const d=distM(lat,lng,n.lat,n.lng);
+      if(d<bd){bd=d;best={id,lat:n.lat,lng:n.lng};} } } };
+  scan(2); if(!best) scan(5); if(!best) scan(12);
+  return best;
+}
+// choose next node: minimise (chase) or maximise (flee) distance to target
+function pickNext(e,tLat,tLng,flee){
+  const nd=G.nodes.get(e.at); if(!nd||!nd.nbr.length){e.to=null;return;}
+  let best=null,bs=Infinity;
+  for(const nb of nd.nbr){ const n2=G.nodes.get(nb); if(!n2)continue;
+    const d=distM(n2.lat,n2.lng,tLat,tLng);
+    let s=flee?-d:d; if(nb===e.prev)s+=1e6;          // discourage backtracking
+    if(s<bs){bs=s;best=nb;} }
+  if(best==null)best=nd.nbr[(Math.random()*nd.nbr.length)|0];
+  e.prev=e.at; e.to=best;
+}
+function wanderNext(e){
+  const nd=G.nodes.get(e.at); if(!nd||!nd.nbr.length){e.to=null;return;}
+  let pool=nd.nbr.filter(n=>n!==e.prev); if(!pool.length)pool=nd.nbr;
+  e.prev=e.at; e.to=pool[(Math.random()*pool.length)|0];
+}
+// advance an entity along the road graph by `step` metres this frame
+function stepAlong(e,step,tLat,tLng,mode){
+  if(e.at==null){ const s=snap(e.lat,e.lng); if(!s)return; e.at=s.id;e.lat=s.lat;e.lng=s.lng; }
+  if(e.to==null){ mode==="wander"?wanderNext(e):pickNext(e,tLat,tLng,mode==="flee"); }
+  if(e.to==null)return;
+  const n=G.nodes.get(e.to); if(!n){e.to=null;return;}
+  const rem=moveToward(e,n.lat,n.lng,step);
+  if(rem<=1.2){ e.lat=n.lat;e.lng=n.lng;e.at=e.to;e.to=null; }   // reached node
+}
+// web-mercator tile helpers
+const lon2tile=(lon,z)=>Math.floor((lon+180)/360*2**z);
+const lat2tile=(lat,z)=>{ const r=lat*Math.PI/180;
+  return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*2**z); };
+function tileXY2LL(z,X,Y,px,py,ext){   // tile-local pixel → lat/lng
+  const nn=2**z;
+  const lon=(X+px/ext)/nn*360-180;
+  const latRad=Math.atan(Math.sinh(Math.PI*(1-2*(Y+py/ext)/nn)));
+  return [latRad*180/Math.PI, lon];
+}
+async function fetchRoads(ll){
+  G.ready=false; G.nodes=new Map(); G.ids=[]; G.grid=new Map();
+  const bn=document.getElementById("banner");
+  const R=850, latd=R/M_PER_DEG_LAT, lngd=R/mPerDegLng(ll[0]);
+  const s=ll[0]-latd, w=ll[1]-lngd, n=ll[0]+latd, e=ll[1]+lngd;
+
+  // cache: once a city loads, replays/reloads are instant & offline
+  const ck="roads4:"+ll[0].toFixed(3)+","+ll[1].toFixed(3)+":"+R;
+  try{ const c=localStorage.getItem(ck);
+    if(c){ const d=JSON.parse(c); buildGraphFromLines(d.lines); buildBuildingIndex(d.buildings||[]); buildWaterIndex(d.water||[]);
+      if(G.ready){ console.log("[roads] from cache:",G.nodes.size,"nodes,",B.polys.length,"buildings,",W.polys.length,"water");
+        bn.innerHTML="🧟 Streets loaded ("+G.nodes.size+" road nodes, cached)"; return; } }
+  }catch(e){}
+
+  bn.innerHTML="🛰️ Loading street map…";
+  try{
+    // OpenFreeMap vector tiles (OSM roads, no key, CDN, CORS) — decode with tiny libs
+    const [pbfMod,vtMod]=await Promise.all([
+      import("https://esm.sh/pbf@3.2.1"),
+      import("https://esm.sh/@mapbox/vector-tile@1.3.1"),
+    ]);
+    const Pbf=pbfMod.default||pbfMod, VectorTile=vtMod.VectorTile;
+    // current tile version from TileJSON (the path is versioned)
+    const tj=await (await fetch("https://tiles.openfreemap.org/planet")).json();
+    const tpl=tj.tiles[0], z=Math.min(14,tj.maxzoom||14);
+    const x0=lon2tile(w,z), x1=lon2tile(e,z), y0=lat2tile(n,z), y1=lat2tile(s,z);
+    const jobs=[];
+    for(let X=x0;X<=x1;X++) for(let Y=y0;Y<=y1;Y++){
+      const url=tpl.replace("{z}",z).replace("{x}",X).replace("{y}",Y);
+      jobs.push(fetch(url).then(r=>r.ok?r.arrayBuffer():null).then(buf=>({buf,X,Y})).catch(()=>null));
+    }
+    const tiles=await Promise.all(jobs);
+    const lines=[], buildings=[], water=[];
+    for(const t of tiles){ if(!t||!t.buf) continue;
+      const vt=new VectorTile(new Pbf(t.buf));
+      const road=vt.layers.transportation;
+      if(road) for(let i=0;i<road.length;i++){
+        const f=road.feature(i); const cls=f.properties.class||"";
+        if(/rail|ferry|transit|aerialway|platform|aeroway|pier/.test(cls)) continue;
+        const ext=f.extent||4096;
+        for(const ring of f.loadGeometry())
+          lines.push(ring.map(p=>tileXY2LL(z,t.X,t.Y,p.x,p.y,ext)));
+      }
+      const bld=vt.layers.building;       // footprints for line-of-sight
+      if(bld) for(let i=0;i<bld.length;i++){
+        const f=bld.feature(i); const ext=f.extent||4096;
+        for(const ring of f.loadGeometry())
+          buildings.push(ring.map(p=>tileXY2LL(z,t.X,t.Y,p.x,p.y,ext)));
+      }
+      const wat=vt.layers.water;          // rivers / lakes / sea — impassable
+      if(wat) for(let i=0;i<wat.length;i++){
+        const f=wat.feature(i); const ext=f.extent||4096;
+        for(const ring of f.loadGeometry())
+          water.push(ring.map(p=>tileXY2LL(z,t.X,t.Y,p.x,p.y,ext)));
+      }
+    }
+    console.log("[roads] decoded",lines.length,"roads,",buildings.length,"buildings,",water.length,"water from",tiles.filter(Boolean).length,"tiles");
+    buildGraphFromLines(lines);
+    buildBuildingIndex(buildings);
+    buildWaterIndex(water);
+    console.log("[roads] graph nodes:",G.nodes.size,"ready:",G.ready);
+    if(G.ready){ try{ localStorage.setItem(ck,JSON.stringify({lines,buildings,water})); }catch(e){} }
+  }catch(err){ console.warn("[roads] failed:",err); }
+
+  bn.innerHTML = G.ready
+    ? "🧟 Streets loaded ("+G.nodes.size+" road nodes) — build your defenses"
+    : "⚠️ Street data unavailable — open-field mode";
+}
+// build the navigation graph from polylines of [lat,lng]; shared vertices merge into intersections
+function buildGraphFromLines(lines){
+  const nodes=new Map();
+  const key=(lat,lng)=>Math.round(lat*1e5)+","+Math.round(lng*1e5);
+  const ensure=(lat,lng)=>{ const k=key(lat,lng); let x=nodes.get(k);
+    if(!x){ x={lat,lng,nbr:[]}; nodes.set(k,x);} return k; };
+  for(const line of lines){
+    for(let i=0;i<line.length-1;i++){
+      const a=ensure(line[i][0],line[i][1]), b=ensure(line[i+1][0],line[i+1][1]);
+      if(a===b) continue;
+      const na=nodes.get(a), nb=nodes.get(b);
+      if(!na.nbr.includes(b)) na.nbr.push(b);
+      if(!nb.nbr.includes(a)) nb.nbr.push(a);
+    }
+  }
+  G.nodes=nodes; G.ids=[...nodes.keys()]; G.grid=new Map();
+  for(const [id,nd] of nodes){ const k=gcell(nd.lat,nd.lng);
+    let arr=G.grid.get(k); if(!arr){arr=[];G.grid.set(k,arr);} arr.push(id); }
+  G.ready = nodes.size>=20;
+}
+
+/* ---------- audio (tiny WebAudio blips) ---------- */
+let AC=null;
+function beep(freq,dur,type="square",vol=0.04){
+  if(!S.sound) return;
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type=type;o.frequency.value=freq;o.connect(g);g.connect(AC.destination);
+    g.gain.setValueAtTime(vol,AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+dur);
+    o.start();o.stop(AC.currentTime+dur);
+  }catch(e){}
+}
+const sfx={
+  shot:()=>beep(520,0.04,"square",0.025),
+  snipe:()=>beep(240,0.12,"sawtooth",0.05),
+  boom:()=>{beep(90,0.3,"sawtooth",0.09);beep(60,0.4,"triangle",0.07);},
+  death:()=>beep(160,0.08,"triangle",0.03),
+  build:()=>beep(660,0.08,"sine",0.05),
+  lose:()=>beep(70,0.6,"sawtooth",0.12),
+};
+
+/* ============================================================
+   MAP + START SCREEN
+   ============================================================ */
+const CITIES=[
+  {n:"New York",ll:[40.7549,-73.984]}, {n:"London",ll:[51.5101,-0.1281]},
+  {n:"Tokyo",ll:[35.6809,139.767]},    {n:"Paris",ll:[48.8584,2.3471]},
+  {n:"Oslo",ll:[59.9133,10.739]},      {n:"Sydney",ll:[-33.8689,151.209]},
+];
+function buildMap(ll){
+  if(map){ map.remove(); map=null; }
+  map=L.map("map",{zoomControl:true,attributionControl:true,
+    minZoom:14,maxZoom:17,zoomSnap:0.25,inertia:true,worldCopyJump:true})
+    .setView(ll,15);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    maxZoom:19, crossOrigin:true,
+    attribution:'&copy; OpenStreetMap contributors'
+  }).addTo(map);
+  map.on("move zoom resize",()=>{}); // canvas redraws every frame anyway
+  map.on("click",onMapClick);
+  map.on("mousemove",e=>{ S.mouseLL=e.latlng; });
+  map.on("mouseout",()=>{S.mouseLL=null;});
+}
+
+// city quick-picks
+const cityRow=document.getElementById("cityRow");
+let chosen=null;
+CITIES.forEach(c=>{
+  const d=document.createElement("div");d.className="city";d.textContent=c.n;
+  d.onclick=()=>{ chosen=c.ll; pickCity(c.n); };
+  cityRow.appendChild(d);
+});
+function pickCity(name){
+  const b=document.getElementById("startBtn");
+  b.disabled=false; b.textContent="Defend "+name+" →";
+  document.getElementById("searchMsg").textContent="";
+}
+// Nominatim search
+async function searchCity(q){
+  const msg=document.getElementById("searchMsg");
+  msg.textContent="Searching…";
+  try{
+    const r=await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(q),
+      {headers:{"Accept-Language":"en"}});
+    const j=await r.json();
+    if(!j.length){ msg.textContent="No place found — try another name."; return; }
+    chosen=[parseFloat(j[0].lat),parseFloat(j[0].lon)];
+    pickCity(j[0].display_name.split(",")[0]);
+  }catch(e){ msg.textContent="Search failed (offline?). Pick a city above."; }
+}
+document.getElementById("cityGo").onclick=()=>{
+  const q=document.getElementById("cityInput").value.trim(); if(q) searchCity(q);
+};
+document.getElementById("cityInput").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){ const q=e.target.value.trim(); if(q) searchCity(q); }
+});
+document.getElementById("startBtn").onclick=()=>{ if(chosen) startGame(chosen); };
+
+/* ============================================================
+   GAME SETUP
+   ============================================================ */
+async function startGame(ll){
+  document.getElementById("modal").style.display="none";
+  buildMap(ll);
+  resetState(ll);
+  buildDock();
+  S.phase="loading"; updateHUD();
+  await new Promise(r=>setTimeout(r,350));   // let the map settle
+  await fetchRoads(ll);
+  origin=pickOrigin(); spawnCivilians();
+  S.phase="planning"; updateHUD(); updateBanner();
+}
+function resetState(ll){
+  zombies.length=civs.length=defs.length=fx.length=0;
+  B.occupied.clear();
+  Object.assign(S,{phase:"planning",wave:0,waveActive:false,spawnQueue:0,spawnTimer:0,
+    cash:CFG.startCash,saved:0,lost:0,kills:0,speed:1,paused:false,
+    selTool:null,selUnit:null,draw:null,airCool:0,sellMode:false});
+  document.getElementById("b-speed").textContent="» 1×";
+  document.getElementById("b-pause").textContent="⏸ Pause";
+}
+function pickOrigin(){
+  const c=map.getCenter();
+  // outbreak offset a bit from centre so it's visible
+  let [la,ln]=offsetLL(c.lat,c.lng, rand(-250,250), rand(-250,250));
+  if(G.ready){ const n=snap(la,ln); if(n) return {lat:n.lat,lng:n.lng,node:n.id}; }
+  return {lat:la,lng:ln,node:null};
+}
+function spawnCivilians(){
+  const c=map.getCenter();
+  if(G.ready){
+    const pool=G.ids.filter(id=>{ const n=G.nodes.get(id);
+      return distM(c.lat,c.lng,n.lat,n.lng)<CFG.fieldRadius; });
+    const src=pool.length?pool:G.ids;
+    for(let i=0;i<CFG.civCount;i++){
+      const id=src[(Math.random()*src.length)|0], n=G.nodes.get(id);
+      civs.push({lat:n.lat,lng:n.lng,at:id,to:null,prev:null,wt:rand(0,6)});
+    }
+  } else {
+    for(let i=0;i<CFG.civCount;i++){
+      const ang=rand(0,Math.PI*2), r=Math.sqrt(Math.random())*CFG.fieldRadius;
+      const [la,ln]=offsetLL(c.lat,c.lng, Math.cos(ang)*r, Math.sin(ang)*r);
+      civs.push({lat:la,lng:ln,wt:rand(0,6)});
+    }
+  }
+  S.civInit=civs.length;
+}
+
+/* ---------- build dock ---------- */
+function buildDock(){
+  const dock=document.getElementById("dock");
+  dock.innerHTML="";
+  const make=(id,def,isAir)=>{
+    const t=document.createElement("div");t.className="tool";t.dataset.id=id;t.dataset.air=isAir?1:0;
+    t.innerHTML=`<kbd>${def.key}</kbd><div class="ic">${def.ic}</div>
+      <div class="nm">${def.nm}</div><div class="ct">$${def.cost}${def.poly?"+":""}</div>
+      <div class="cd"></div>`;
+    t.onclick=()=>selectTool(id);
+    dock.appendChild(t);
+  };
+  Object.entries(UNITS).forEach(([id,d])=>make(id,d,false));
+  make("bomber",AIR.bomber,true);
+}
+function selectTool(id){
+  if(S.sellMode) toggleSell(false);
+  S.selTool = (S.selTool===id)?null:id;
+  S.selUnit=null; S.draw=null;
+  refreshDock();
+}
+function refreshDock(){
+  document.querySelectorAll(".tool").forEach(t=>{
+    const id=t.dataset.id, air=t.dataset.air==="1";
+    const def=air?AIR[id]:UNITS[id];
+    t.classList.toggle("sel",S.selTool===id);
+    const afford=S.cash>=def.cost;
+    const ready=!air || S.airCool<=0;
+    t.classList.toggle("disabled",!afford||!ready);
+    const cd=t.querySelector(".cd");
+    if(air && S.airCool>0){ cd.style.display="flex"; cd.textContent=Math.ceil(S.airCool)+"s"; }
+    else cd.style.display="none";
+  });
+}
+
+/* ============================================================
+   INPUT
+   ============================================================ */
+function onMapClick(e){
+  const ll=e.latlng;
+  // selling: click a placed unit to sell
+  if(S.sellMode){ const d=nearestDef(ll.lat,ll.lng,40); if(d) sellDef(d); return; }
+  if(!S.selTool){ // maybe select a unit to inspect
+    S.selUnit=nearestDef(ll.lat,ll.lng,40); updateHUD(); return;
+  }
+  if(S.selTool==="safe"){ addSafePoint(ll); return; }   // draw polygon vertex by vertex
+  const air = S.selTool==="bomber";
+  if(air){ callAirStrike(ll); return; }
+  placeUnit(S.selTool,ll);
+}
+// safe zone: click to add polygon vertices; click the first vertex (or Enter) to finish
+function addSafePoint(ll){
+  if(S.phase==="won"||S.phase==="lost") return;
+  if(!S.draw) S.draw=[];
+  const pts=S.draw;
+  if(pts.length>=3){                       // close if clicking near the first vertex
+    const p0=P(pts[0][0],pts[0][1]), pc=P(ll.lat,ll.lng);
+    if(Math.hypot(p0.x-pc.x,p0.y-pc.y)<14){ finishSafe(); return; }
+  }
+  pts.push([ll.lat,ll.lng]);
+}
+function finishSafe(){
+  const pts=S.draw; if(!pts||pts.length<3){ S.draw=null; return; }
+  if(polyArea(pts)<UNITS.safe.minArea){ flash("Zone too small"); return; }
+  const cost=safeCostPoly(pts);
+  if(cost>S.cash){ flash("Not enough cash for that area"); return; }
+  S.cash-=cost;
+  const c=centroidOf(pts);
+  defs.push({type:"safe",lat:c[0],lng:c[1],poly:pts.slice(),cost,hp:9999,maxhp:9999,ammo:0,maxammo:0});
+  S.draw=null; sfx.build(); updateHUD(); refreshDock();
+}
+function nearestDef(lat,lng,maxM){
+  let best=null,bd=maxM;
+  for(const d of defs){ const dd=distM(lat,lng,d.lat,d.lng); if(dd<bd){bd=dd;best=d;} }
+  return best;
+}
+function placeUnit(type,ll){
+  const def=UNITS[type];
+  if(S.cash<def.cost){ flash("Not enough cash"); return; }
+  let lat=ll.lat,lng=ll.lng, bi=undefined;
+  if(def.on==="building" && B.polys.length){     // rooftop emplacement — snap to a building
+    bi=nearestBuilding(lat,lng);
+    if(bi<0){ flash("Must be placed on a building"); return; }
+    if(B.occupied.has(bi)){ flash("Building already occupied"); return; }
+    const c=B.cent[bi]; lat=c[0]; lng=c[1];
+  } else if(def.on!=="building" && G.ready){      // street unit — snap to the road grid
+    const sp=snap(lat,lng);
+    if(!sp){ flash("No road nearby"); return; } lat=sp.lat; lng=sp.lng;
+  }
+  S.cash-=def.cost;
+  const d={type,lat,lng,cd:0,hp:def.hp,maxhp:def.hp,ammo:def.ammo||0,maxammo:def.ammo||0,bi};
+  defs.push(d); if(bi!=null) B.occupied.add(bi);
+  sfx.build(); updateHUD(); refreshDock();
+}
+function removeDef(d){                            // free its building slot, then remove
+  if(d.bi!=null) B.occupied.delete(d.bi);
+  const i=defs.indexOf(d); if(i>=0) defs.splice(i,1);
+  if(S.selUnit===d) S.selUnit=null;
+}
+// resale value: full-ammo units refund most of their cost; spent units refund little
+function sellValue(d){
+  if(d.type==="safe") return Math.round((d.cost||0)*0.6);
+  const def=UNITS[d.type];
+  if(!def.ammo) return Math.round(def.cost*0.6);           // walls / safe zones: flat
+  return Math.round(def.cost*(0.25 + 0.6*(d.ammo/d.maxammo)));  // scales with shots left
+}
+function sellDef(d){
+  const refund=sellValue(d);
+  S.cash+=refund; removeDef(d);
+  flash("Sold +$"+refund); updateHUD(); refreshDock();
+}
+function callAirStrike(ll){
+  if(S.airCool>0) return;
+  if(S.cash<AIR.bomber.cost){ flash("Not enough cash"); return; }
+  S.cash-=AIR.bomber.cost; S.airCool=AIR.bomber.cool;
+  const a=AIR.bomber;
+  // damage zombies + civilians in radius
+  for(let i=zombies.length-1;i>=0;i--){ const z=zombies[i];
+    if(distM(ll.lat,ll.lng,z.lat,z.lng)<=a.radius){ killZombie(i,false); } }
+  for(let i=civs.length-1;i>=0;i--){ const c=civs[i];
+    if(distM(ll.lat,ll.lng,c.lat,c.lng)<=a.radius){ c.dead=true; civs.splice(i,1); S.lost++; } }
+  fx.push({t:"boom",lat:ll.lat,lng:ll.lng,r:a.radius,life:0.9,max:0.9});
+  fx.push({t:"ring",lat:ll.lat,lng:ll.lng,r:a.radius,life:0.6,max:0.6,col:"#ffc34d"});
+  sfx.boom(); S.selTool=null; updateHUD(); refreshDock();
+}
+function flash(txt){
+  const b=document.getElementById("banner"); b.dataset.flash="1";
+  b.innerHTML=txt; clearTimeout(flash._t);
+  flash._t=setTimeout(()=>{ b.dataset.flash=""; updateBanner(); },1100);
+}
+
+/* ---------- side buttons ---------- */
+document.getElementById("b-wave").onclick=startWave;
+document.getElementById("b-pause").onclick=()=>{
+  S.paused=!S.paused; document.getElementById("b-pause").textContent=S.paused?"▶ Resume":"⏸ Pause";
+};
+const SPEEDS=[1,2,4,8,16];
+document.getElementById("b-speed").onclick=()=>{
+  S.speed=SPEEDS[(SPEEDS.indexOf(S.speed)+1)%SPEEDS.length];
+  document.getElementById("b-speed").textContent="» "+S.speed+"×";
+};
+document.getElementById("b-sound").onclick=()=>{
+  S.sound=!S.sound; document.getElementById("b-sound").textContent=S.sound?"🔊":"🔇";
+};
+document.getElementById("b-restart").onclick=()=>location.reload();
+document.getElementById("b-sell").onclick=()=>{
+  if(S.selUnit){ sellDef(S.selUnit); return; }   // sell the inspected unit directly
+  toggleSell(!S.sellMode);
+};
+function toggleSell(on){
+  S.sellMode=on; if(on){ S.selTool=null; S.selUnit=null; S.draw=null; }
+  const b=document.getElementById("b-sell");
+  b.textContent="💲 Sell: "+(on?"ON":"off");
+  b.classList.toggle("primary",on);
+  refreshDock();
+}
+window.addEventListener("keydown",e=>{
+  const k=e.key.toLowerCase();
+  if(k===" "){ e.preventDefault(); document.getElementById("b-pause").click(); return; }
+  if(k==="escape"){ S.selTool=null; S.selUnit=null; S.draw=null; toggleSell(false); updateHUD(); return; }
+  if(k==="enter"){ if(S.selTool==="safe") finishSafe(); return; }
+  if(k==="backspace"){ if(S.draw&&S.draw.length){ e.preventDefault(); S.draw.pop(); } return; }
+  for(const [id,d] of Object.entries(UNITS)) if(d.key===k) selectTool(id);
+  if(AIR.bomber.key===k) selectTool("bomber");
+});
+
+/* ============================================================
+   WAVES
+   ============================================================ */
+function startWave(){
+  if(S.phase!=="planning"||S.waveActive) return;
+  for(const d of defs) if(d.maxammo) d.ammo=d.maxammo;   // rearm every unit each wave
+  S.wave++; S.waveActive=true; S.phase="wave";
+  S.spawnQueue=6+S.wave*5;
+  S.spawnTimer=0;
+  updateHUD(); updateBanner();
+}
+function spawnZombie(){
+  const hp=CFG.zBaseHp+S.wave*CFG.zHpPerWave;
+  if(G.ready){
+    let id=origin.node; if(id==null){ const sp=snap(origin.lat,origin.lng); id=sp?sp.id:null; }
+    if(id!=null){ const nd=G.nodes.get(id);
+      const z={lat:nd.lat,lng:nd.lng,at:id,to:null,prev:null,hp,maxhp:hp,wt:rand(0,2)};
+      if(nd.nbr.length) wanderNext(z);   // fan out onto a random street
+      zombies.push(z); return; }
+  }
+  const ang=rand(0,Math.PI*2), r=rand(0,CFG.spawnRadius);
+  const [la,ln]=offsetLL(origin.lat,origin.lng,Math.cos(ang)*r,Math.sin(ang)*r);
+  zombies.push({lat:la,lng:ln,hp,maxhp:hp,wt:rand(0,6)});
+}
+function killZombie(i,bounty=true){
+  zombies[i].dead=true;                 // so civilians holding this as a threat drop it
+  zombies.splice(i,1); S.kills++;
+  if(bounty) S.cash+=CFG.bounty;
+  if(Math.random()<0.5) sfx.death();
+}
+
+/* ============================================================
+   UPDATE LOOP
+   ============================================================ */
+let last=performance.now();
+function tick(now){
+  let dt=(now-last)/1000; last=now; dt=Math.min(dt,0.05);
+  if(!S.paused && (S.phase==="wave"||S.phase==="planning")) update(dt*S.speed);
+  render();
+  if(S.airCool>0 && !S.paused){ S.airCool=Math.max(0,S.airCool-dt*S.speed);
+    if(S.airCool===0||Math.random()<0.1) refreshDock(); }
+  requestAnimationFrame(tick);
+}
+function update(dt){
+  // spawn queued zombies gradually
+  if(S.waveActive && S.spawnQueue>0){
+    S.spawnTimer-=dt;
+    if(S.spawnTimer<=0){ spawnZombie(); S.spawnQueue--; S.spawnTimer=0.35; }
+  }
+  zGrid=hashOf(zombies); cGrid=hashOf(civs);   // rebuild neighbour grids once per frame
+  updateCivs(dt);
+  updateZombies(dt);
+  updateDefenses(dt);
+  updateFx(dt);
+  checkWaveEnd();
+  updateHUD();
+}
+
+// nearest safe zone a civilian can actually see (clear line of sight to its centre)
+function visibleSafeZone(c){
+  let vis=null, vd=1e9;
+  for(const df of defs) if(df.type==="safe"){ const d=distM(c.lat,c.lng,df.lat,df.lng);
+    if(d<vd && losClear(c.lat,c.lng,df.lat,df.lng)){ vd=d; vis=df; } }
+  return vis;
+}
+// nearest zombie a civilian can actually see (line of sight required)
+function senseZombie(c){
+  const zn=near(zGrid,c.lat,c.lng,ringsFor(CFG.civSight),[]);
+  const cands=[];
+  for(const z of zn){ const d=distM(c.lat,c.lng,z.lat,z.lng); if(d<CFG.civSight) cands.push([d,z]); }
+  cands.sort((a,b)=>a[0]-b[0]);
+  for(let i=0;i<cands.length && i<10;i++){
+    if(losClear(c.lat,c.lng,cands[i][1].lat,cands[i][1].lng)) return cands[i][1];
+  }
+  return null;
+}
+function updateCivs(dt){
+  for(let i=civs.length-1;i>=0;i--){
+    const c=civs[i];
+    // re-check for a visible zombie periodically; keep fleeing it in between
+    c.think=(c.think||0)-dt;
+    if(c.think<=0 || !c.threat || c.threat.dead){ c.think=0.25+Math.random()*0.2; c.threat=senseZombie(c); }
+    let nz = (c.threat && !c.threat.dead) ? c.threat : null;
+    let nzd = nz ? distM(c.lat,c.lng,nz.lat,nz.lng) : 1e9;
+    // nearest safe zone
+    let sz=null,szd=1e9;
+    for(const df of defs) if(df.type==="safe"){ const d=distM(c.lat,c.lng,df.lat,df.lng); if(d<szd){szd=d;sz=df;} }
+    // reached a safe zone -> rescued
+    if(sz && inSafe(sz,c.lat,c.lng)){ c.dead=true; civs.splice(i,1); S.saved++; continue; }
+
+    let step=CFG.civSpeed*dt;
+    if(G.ready){
+      if(nz){ // threatened: sprint to a safe zone (visible one preferred, else nearest by road)
+        const dest = visibleSafeZone(c) || (sz && szd<CFG.civSeek ? sz : null);
+        if(dest) stepAlong(c,step*CFG.civFlee,dest.lat,dest.lng,"chase");
+        else stepAlong(c,step*CFG.civFlee,nz.lat,nz.lng,"flee");
+      } else if(sz && szd<CFG.civSeek){ stepAlong(c,step*0.7,sz.lat,sz.lng,"chase"); }  // calmly drift to safety
+      else { stepAlong(c,step*0.5,0,0,"wander"); }
+    } else if(nz){ // flee (free-roam mode), biased toward safe zone
+      const ax=(c.lng-nz.lng)*mPerDegLng(c.lat), ay=(c.lat-nz.lat)*M_PER_DEG_LAT;
+      const am=Math.hypot(ax,ay)||1;
+      let dx=ax/am, dy=ay/am;
+      if(sz){ const sx=(sz.lng-c.lng)*mPerDegLng(c.lat), sy=(sz.lat-c.lat)*M_PER_DEG_LAT;
+        const sm=Math.hypot(sx,sy)||1;
+        dx=dx*0.45+(sx/sm)*0.55; dy=dy*0.45+(sy/sm)*0.55;
+        const m=Math.hypot(dx,dy)||1; dx/=m; dy/=m; }
+      const [tl,tn]=offsetLL(c.lat,c.lng,dx*step*55,dy*step*55);
+      moveToward(c,tl,tn,step*CFG.civFlee);
+    } else if(sz && szd<700){ moveToward(c,sz.lat,sz.lng,step*0.5); }
+    else { c.wt-=dt;
+      if(c.wt<=0){ c.wt=rand(1,3);
+        const [tl,tn]=offsetLL(c.lat,c.lng,rand(-40,40),rand(-40,40)); c._wl=tl; c._wn=tn; }
+      if(c._wl!=null) moveToward(c,c._wl,c._wn,step*CFG.civWander*0.4);
+    }
+  }
+}
+
+// pick a victim: the nearest human with clear line of sight (chase what you can see),
+// else anyone close enough to smell (around corners)
+function acquireTarget(z){
+  let smell=null,sd=CFG.zSmell;
+  const cands=[];
+  const cnear=near(cGrid,z.lat,z.lng,ringsFor(CFG.zSight),[]);
+  for(const c of cnear){ if(c.dead) continue;
+    const d=distM(z.lat,z.lng,c.lat,c.lng);
+    if(d<sd){sd=d;smell=c;}
+    if(d<CFG.zSight) cands.push([d,c]);
+  }
+  cands.sort((a,b)=>a[0]-b[0]);
+  for(let i=0;i<cands.length && i<12;i++){
+    if(losClear(z.lat,z.lng,cands[i][1].lat,cands[i][1].lng)) return cands[i][1];
+  }
+  return smell;   // nothing visible — fall back to scent, or null
+}
+function updateZombies(dt){
+  const step0=CFG.zSpeed*dt;
+  for(let zi=zombies.length-1;zi>=0;zi--){
+    const z=zombies[zi];
+    // re-pick a target periodically (staggered); keep chasing it between re-thinks
+    z.think=(z.think||0)-dt;
+    if(z.think<=0 || !z.tgt || z.tgt.dead){ z.think=0.3+Math.random()*0.25; z.tgt=acquireTarget(z); }
+    let tc = (z.tgt && !z.tgt.dead) ? z.tgt : null;
+    let tcd = tc ? distM(z.lat,z.lng,tc.lat,tc.lng) : 1e9;
+    // melee nearest defense if adjacent
+    let hitDef=null,hdd=1e9;
+    for(const df of defs){ const r=(UNITS[df.type].wallR||0);
+      const reach=CFG.zMelee+r;
+      const d=distM(z.lat,z.lng,df.lat,df.lng);
+      if(d<reach && d<hdd && df.type!=="safe"){ hdd=d; hitDef=df; } }
+
+    // safe zone damages zombies that enter
+    for(const df of defs) if(df.type==="safe"){
+      if(inSafe(df,z.lat,z.lng)){ z.hp-=40*dt; } }
+    if(z.hp<=0){ killZombie(zi); continue; }
+
+    if(hitDef){ // attack the defense
+      hitDef.hp-=CFG.zMeleeDmg*dt;
+      if(hitDef.hp<=0){ removeDef(hitDef); refreshDock(); }
+      continue;
+    }
+
+    if(tc){
+      const c=tc;
+      if(tcd<CFG.zMelee){ // infect!
+        c.dead=true; const ci=civs.indexOf(c); if(ci>=0) civs.splice(ci,1); S.lost++;
+        z.tgt=null;
+        // spread: turn into a new zombie (on the same street node)
+        const hp=CFG.zBaseHp+S.wave*CFG.zHpPerWave*0.5;
+        zombies.push({lat:c.lat,lng:c.lng,at:c.at??null,to:null,prev:null,hp,maxhp:hp,wt:0});
+      } else if(tcd<CFG.zChase && losClear(z.lat,z.lng,c.lat,c.lng) && !crossesWater(z.lat,z.lng,c.lat,c.lng)){
+        // close & in sight over dry land — beeline straight across, off the road grid
+        moveToward(z,c.lat,c.lng,step0); z.at=null; z.to=null;
+      } else if(G.ready){
+        stepAlong(z,step0,c.lat,c.lng,"chase");
+      } else {
+        moveToward(z,c.lat,c.lng,step0);
+      }
+    } else if(G.ready){
+      stepAlong(z,step0*0.6,0,0,"wander");
+    } else {
+      // no civilian sensed: shamble / wander
+      z.wt-=dt;
+      if(z.wt<=0){ z.wt=rand(1.5,4);
+        const [tl,tn]=offsetLL(z.lat,z.lng,rand(-120,120),rand(-120,120)); z._wl=tl;z._wn=tn; }
+      if(z._wl!=null) moveToward(z,z._wl,z._wn,step0*0.5);
+    }
+
+    // barricade repulsion (free-roam mode only; on roads the melee block handles it)
+    if(!G.ready) for(const df of defs) if(df.type==="wall"){
+      const r=UNITS.wall.wallR;
+      const d=distM(z.lat,z.lng,df.lat,df.lng);
+      if(d<r+10){
+        const nx=(z.lng-df.lng)*mPerDegLng(z.lat), ny=(z.lat-df.lat)*M_PER_DEG_LAT;
+        const nm=Math.hypot(nx,ny)||1;
+        const [tl,tn]=offsetLL(df.lat,df.lng,(nx/nm)*(r+10),(ny/nm)*(r+10));
+        z.lat=tl; z.lng=tn;
+      }
+    }
+  }
+}
+
+function updateDefenses(dt){
+  for(const d of defs){
+    const def=UNITS[d.type];
+    if(!def.range||def.range<=0) continue;
+    if(def.ammo && d.ammo<=0) continue;            // out of ammunition — dry
+    d.cd-=dt; if(d.cd>0) continue;
+
+    if(d.type==="mortar"){
+      // artillery: lobs over buildings, nearest zombie in range (no line-of-sight needed)
+      let best=null,bd=def.range;
+      const zn=near(zGrid,d.lat,d.lng,ringsFor(def.range),[]);
+      for(const z of zn){ const dd=distM(d.lat,d.lng,z.lat,z.lng); if(dd<bd){bd=dd;best=z;} }
+      if(best){
+        const tl=best.lat,tn=best.lng; d.cd=def.rate; d.ammo--;
+        for(let i=zombies.length-1;i>=0;i--){ if(distM(tl,tn,zombies[i].lat,zombies[i].lng)<=def.splash)
+          zombies[i].hp-=def.dmg; }
+        for(let i=civs.length-1;i>=0;i--){ if(distM(tl,tn,civs[i].lat,civs[i].lng)<=def.splash){
+          civs[i].dead=true; civs.splice(i,1); S.lost++; } }
+        fx.push({t:"boom",lat:tl,lng:tn,r:def.splash,life:0.5,max:0.5});
+        sfx.boom(); cleanupDead();
+      }
+    } else {
+      // direct fire: only zombies in range WITH clear line of sight (no shooting through buildings)
+      const zn=near(zGrid,d.lat,d.lng,ringsFor(def.range),[]);
+      const targets=[];
+      for(const z of zn){ const dd=distM(d.lat,d.lng,z.lat,z.lng);
+        if(dd<=def.range && (def.noLOS || losClear(d.lat,d.lng,z.lat,z.lng,d.bi))) targets.push([dd,z]); }
+      if(targets.length){
+        targets.sort((a,b)=>a[0]-b[0]);
+        const n=Math.min(def.multi||1, targets.length, d.ammo||1e9);
+        d.cd=def.rate;
+        for(let k=0;k<n;k++){
+          const z=targets[k][1]; z.hp-=def.dmg; if(def.ammo) d.ammo--;
+          fx.push({t:"tracer",x1l:d.lat,x1n:d.lng,x2l:z.lat,x2n:z.lng,life:0.09,max:0.09,col:def.color});
+        }
+        d.type==="sniper"?sfx.snipe():sfx.shot();
+        cleanupDead();
+      }
+    }
+  }
+}
+function cleanupDead(){
+  for(let i=zombies.length-1;i>=0;i--) if(zombies[i].hp<=0) killZombie(i);
+}
+
+function updateFx(dt){
+  for(let i=fx.length-1;i>=0;i--){ fx[i].life-=dt; if(fx[i].life<=0) fx.splice(i,1); }
+}
+
+function checkWaveEnd(){
+  // lose condition
+  if(S.lost>=S.civInit*CFG.loseFrac && S.phase==="wave"){ endGame(false); return; }
+  if(civs.length===0 && S.saved===0 && S.phase==="wave"){ endGame(false); return; }
+  // wave cleared
+  if(S.waveActive && S.spawnQueue===0 && zombies.length===0){
+    S.waveActive=false;
+    if(S.wave>=CFG.waves){ endGame(true); return; }
+    S.phase="planning";
+    S.cash+=60+S.wave*15; // build income between waves
+    updateBanner();
+  }
+}
+
+function endGame(won){
+  S.phase=won?"won":"lost";
+  if(!won) sfx.lose();
+  // remaining living civilians count as saved on a win
+  const survivors = won ? S.saved+civs.length : S.saved;
+  const score = survivors*100 + S.kills*5 + (won?2000:0) + S.cash;
+  const m=document.getElementById("modal");
+  m.style.display="flex";
+  m.querySelector(".card").innerHTML=`
+    <h1>${won?'🏆 City <b>Saved</b>':'☠️ City <b>Overrun</b>'}</h1>
+    <p>${won
+      ? 'You contained the outbreak. The survivors owe you everything.'
+      : 'The infection spread faster than you could contain it. Losing is part of the fun — tweak your layout and try again.'}</p>
+    <div class="end-stat"><span>Civilians saved</span><b class="v saved">${survivors}</b></div>
+    <div class="end-stat"><span>Civilians lost</span><b class="v lost">${S.lost}</b></div>
+    <div class="end-stat"><span>Zombies killed</span><b class="v zombies">${S.kills}</b></div>
+    <div class="end-stat"><span>Waves cleared</span><b class="v wave">${won?CFG.waves:S.wave-(S.waveActive?1:0)}/${CFG.waves}</b></div>
+    <div class="end-stat"><span>Final score</span><b style="color:var(--acid)">${score}</b></div>
+    <button class="btn primary big" onclick="location.reload()">↺ Play again</button>
+  `;
+}
+
+/* ============================================================
+   RENDER (canvas overlay)
+   ============================================================ */
+const cv=document.getElementById("fx"), cx=cv.getContext("2d");
+function sizeCanvas(){ cv.width=innerWidth*devicePixelRatio; cv.height=innerHeight*devicePixelRatio;
+  cv.style.width=innerWidth+"px"; cv.style.height=innerHeight+"px"; cx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+addEventListener("resize",sizeCanvas); sizeCanvas();
+
+function pxPerMeter(){
+  if(!map) return 0.2;
+  const c=map.getCenter();
+  const p1=map.latLngToContainerPoint(c);
+  const p2=map.latLngToContainerPoint([c.lat,c.lng+0.002]);
+  const m=distM(c.lat,c.lng,c.lat,c.lng+0.002)||1;
+  return Math.hypot(p2.x-p1.x,p2.y-p1.y)/m;
+}
+function P(lat,lng){ return map.latLngToContainerPoint([lat,lng]); }
+
+function render(){
+  cx.clearRect(0,0,innerWidth,innerHeight);
+  if(!map||!origin) return;
+  const ppm=pxPerMeter();
+  const b=map.getBounds().pad(0.1);
+  const inView=(lat,lng)=>lat<=b.getNorth()&&lat>=b.getSouth()&&lng<=b.getEast()&&lng>=b.getWest();
+
+  // road network overlay (confirms streets are loaded)
+  if(G.ready){
+    cx.strokeStyle="rgba(92,255,135,0.14)"; cx.lineWidth=1;
+    cx.beginPath();
+    for(const [id,nd] of G.nodes){
+      const inA=inView(nd.lat,nd.lng);
+      for(const nb of nd.nbr){ if(nb<=id) continue;        // draw each edge once
+        const n2=G.nodes.get(nb); if(!n2) continue;
+        if(!inA && !inView(n2.lat,n2.lng)) continue;
+        const p1=P(nd.lat,nd.lng), p2=P(n2.lat,n2.lng);
+        cx.moveTo(p1.x,p1.y); cx.lineTo(p2.x,p2.y);
+      }
+    }
+    cx.stroke();
+  }
+
+  // (outbreak location is hidden — you won't know where it starts until zombies appear)
+
+  // safe zones (draw under) — user-drawn polygons
+  for(const d of defs) if(d.type==="safe" && d.poly){
+    cx.fillStyle="rgba(92,255,135,0.13)"; cx.strokeStyle="rgba(92,255,135,0.55)"; cx.lineWidth=2;
+    cx.beginPath();
+    for(let i=0;i<d.poly.length;i++){ const q=P(d.poly[i][0],d.poly[i][1]); i?cx.lineTo(q.x,q.y):cx.moveTo(q.x,q.y); }
+    cx.closePath(); cx.fill(); cx.stroke();
+  }
+  // occupied buildings (rooftop units) highlighted in the unit's colour
+  for(const d of defs) if(d.bi!=null) fillBuilding(d.bi, UNITS[d.type].color, 0.22);
+
+  // safe-zone polygon drawing preview
+  if(S.selTool==="safe"){
+    const pts=S.draw;
+    if(pts && pts.length){
+      // include the live cursor as a provisional vertex so area/price update as you move
+      const prov = S.mouseLL ? pts.concat([[S.mouseLL.lat,S.mouseLL.lng]]) : pts;
+      const closable=prov.length>=3;
+      const cost=closable?safeCostPoly(prov):0, afford=cost<=S.cash;
+      const col=(!closable||afford)?"#5cff87":"#ff5a5a";
+      // rubber-band outline through the vertices + cursor
+      cx.beginPath();
+      for(let i=0;i<pts.length;i++){ const q=P(pts[i][0],pts[i][1]); i?cx.lineTo(q.x,q.y):cx.moveTo(q.x,q.y); }
+      if(S.mouseLL){ const qc=P(S.mouseLL.lat,S.mouseLL.lng); cx.lineTo(qc.x,qc.y); }
+      cx.closePath();
+      cx.globalAlpha=0.14; cx.fillStyle=col; cx.fill(); cx.globalAlpha=1;
+      cx.strokeStyle=col; cx.lineWidth=2; cx.setLineDash([6,4]); cx.stroke(); cx.setLineDash([]);
+      // vertices (first one larger to show the "close here" target)
+      for(let i=0;i<pts.length;i++){ const q=P(pts[i][0],pts[i][1]);
+        cx.fillStyle=i===0?"#ffffff":col; cx.beginPath(); cx.arc(q.x,q.y,i===0?5:3,0,7); cx.fill(); }
+      // cost label by the first vertex
+      if(closable){ const q=P(pts[0][0],pts[0][1]);
+        const t="🏳️ $"+cost+(afford?"":"  too expensive");
+        cx.font="bold 12px sans-serif"; cx.textAlign="center";
+        const w=cx.measureText(t).width+12;
+        cx.fillStyle="#0c0f0cdd"; cx.fillRect(q.x-w/2,q.y-28,w,17);
+        cx.fillStyle=col; cx.fillText(t,q.x,q.y-16); }
+    } else if(S.mouseLL){
+      const p=P(S.mouseLL.lat,S.mouseLL.lng);
+      cx.fillStyle="#5cff87"; cx.font="11px sans-serif"; cx.textAlign="center";
+      cx.fillText("click to add points · close on 1st point or Enter",p.x,p.y-10);
+    }
+  }
+  // placement preview for the other tools
+  else if(S.selTool && UNITS[S.selTool] && S.mouseLL){
+    const def=UNITS[S.selTool];
+    let gl, ok;
+    if(def.on==="building"){                      // rooftop unit: snap to a building
+      const bi=B.polys.length?nearestBuilding(S.mouseLL.lat,S.mouseLL.lng):-1;
+      ok = bi>=0 && !B.occupied.has(bi);
+      if(bi>=0) fillBuilding(bi, ok?def.color:"#ff5a5a", 0.3);
+      gl = bi>=0 ? {lat:B.cent[bi][0],lng:B.cent[bi][1]} : S.mouseLL;
+    } else {                                       // street unit: snap to the road
+      const sp=G.ready?snap(S.mouseLL.lat,S.mouseLL.lng):null;
+      ok = !!sp || !G.ready; gl = sp||S.mouseLL;
+    }
+    const p=P(gl.lat,gl.lng);
+    if(def.range>0 && ok){ const r=def.range*ppm;
+      cx.setLineDash([5,5]); cx.strokeStyle=def.color; cx.globalAlpha=0.7;
+      cx.beginPath(); cx.arc(p.x,p.y,r,0,7); cx.stroke();
+      cx.globalAlpha=1; cx.setLineDash([]); }
+    cx.fillStyle=ok?def.color:"#ff5a5a";
+    cx.beginPath(); cx.arc(p.x,p.y,8,0,7); cx.fill();
+    cx.fillStyle="#0c0f0c"; cx.font="11px sans-serif"; cx.textAlign="center"; cx.textBaseline="middle";
+    cx.fillText(def.ic,p.x,p.y); cx.textBaseline="alphabetic";
+  }
+  if(S.selTool==="bomber" && S.mouseLL){
+    const p=P(S.mouseLL.lat,S.mouseLL.lng), r=AIR.bomber.radius*ppm;
+    cx.setLineDash([6,4]); cx.strokeStyle="#ffc34d"; cx.beginPath(); cx.arc(p.x,p.y,r,0,7); cx.stroke(); cx.setLineDash([]);
+  }
+  if(S.selUnit){
+    const d=S.selUnit, def=UNITS[d.type], p=P(d.lat,d.lng);
+    if(def.range>0){
+      cx.strokeStyle=def.color; cx.globalAlpha=0.5; cx.setLineDash([4,4]);
+      cx.beginPath(); cx.arc(p.x,p.y,def.range*ppm,0,7); cx.stroke();
+      cx.setLineDash([]); cx.globalAlpha=1; }
+    // info chip: name, ammo, resale value
+    const txt = def.nm + (def.ammo? "  ·  ammo "+d.ammo+"/"+d.maxammo : "") + "  ·  sell $"+sellValue(d);
+    cx.font="bold 11px sans-serif"; cx.textAlign="center";
+    const w=cx.measureText(txt).width+14;
+    cx.fillStyle="#0c0f0cdd"; cx.strokeStyle=def.color; cx.lineWidth=1;
+    cx.beginPath(); cx.rect(p.x-w/2,p.y-34,w,17); cx.fill(); cx.stroke();
+    cx.fillStyle="#d9e8d9"; cx.fillText(txt,p.x,p.y-22);
+  }
+
+  // civilians
+  cx.fillStyle="#6bc6ff";
+  for(const c of civs){ if(!inView(c.lat,c.lng)) continue; const p=P(c.lat,c.lng);
+    cx.beginPath(); cx.arc(p.x,p.y,2.6,0,7); cx.fill(); }
+
+  // zombies
+  for(const z of zombies){ if(!inView(z.lat,z.lng)) continue; const p=P(z.lat,z.lng);
+    const hpf=clamp(z.hp/z.maxhp,0,1);
+    cx.fillStyle="#5cff87"; cx.beginPath(); cx.arc(p.x,p.y,3.4,0,7); cx.fill();
+    if(hpf<1){ cx.strokeStyle="#ff5a5a"; cx.lineWidth=1.4; cx.beginPath();
+      cx.arc(p.x,p.y,5,-Math.PI/2,-Math.PI/2+7*hpf); cx.stroke(); }
+  }
+
+  // defenses
+  for(const d of defs){ if(!inView(d.lat,d.lng)) continue; const def=UNITS[d.type]; const p=P(d.lat,d.lng);
+    if(d.type==="safe") { drawDef(p,def,d); continue; }
+    if(d.type==="wall"){ cx.fillStyle=def.color; const s=UNITS.wall.wallR*ppm;
+      cx.fillRect(p.x-s,p.y-s*0.5,s*2,s); }
+    drawDef(p,def,d);
+  }
+
+  // fx
+  for(const f of fx){
+    const a=f.life/f.max;
+    if(f.t==="tracer"){ const p1=P(f.x1l,f.x1n),p2=P(f.x2l,f.x2n);
+      cx.strokeStyle=f.col; cx.globalAlpha=a; cx.lineWidth=1.6;
+      cx.beginPath(); cx.moveTo(p1.x,p1.y); cx.lineTo(p2.x,p2.y); cx.stroke(); cx.globalAlpha=1; }
+    else if(f.t==="boom"){ const p=P(f.lat,f.lng), r=f.r*ppm*(1.1-a*0.3);
+      cx.fillStyle="rgba(255,150,40,"+(a*0.5)+")"; cx.beginPath(); cx.arc(p.x,p.y,r,0,7); cx.fill();
+      cx.strokeStyle="rgba(255,210,120,"+a+")"; cx.lineWidth=2; cx.beginPath(); cx.arc(p.x,p.y,r,0,7); cx.stroke(); }
+    else if(f.t==="ring"){ const p=P(f.lat,f.lng), r=f.r*ppm*(1.3-a*0.3);
+      cx.strokeStyle=f.col; cx.globalAlpha=a; cx.lineWidth=3; cx.beginPath(); cx.arc(p.x,p.y,r,0,7); cx.stroke(); cx.globalAlpha=1; }
+  }
+}
+function fillBuilding(bi,col,a){
+  const poly=B.polys[bi]; if(!poly) return;
+  cx.beginPath();
+  for(let i=0;i<poly.length;i++){ const q=P(poly[i][0],poly[i][1]); i?cx.lineTo(q.x,q.y):cx.moveTo(q.x,q.y); }
+  cx.closePath();
+  cx.globalAlpha=a; cx.fillStyle=col; cx.fill(); cx.globalAlpha=1;
+  cx.strokeStyle=col; cx.lineWidth=1.5; cx.stroke();
+}
+function drawDef(p,def,d){
+  cx.font="15px sans-serif"; cx.textAlign="center"; cx.textBaseline="middle";
+  const dry = def.ammo && d.ammo<=0;
+  if(d.type!=="safe" && d.type!=="wall"){
+    cx.fillStyle="#0c0f0c"; cx.strokeStyle=dry?"#555":def.color; cx.lineWidth=1.5;
+    cx.beginPath(); cx.arc(p.x,p.y,11,0,7); cx.fill(); cx.stroke();
+  }
+  cx.globalAlpha = dry?0.45:1;
+  cx.fillText(def.ic, p.x, p.y+1);
+  cx.globalAlpha = 1;
+  // HP bar (red) when damaged
+  const dmg=d.hp/d.maxhp;
+  if(d.type!=="safe" && dmg<1){ cx.fillStyle="#ff5a5a"; cx.fillRect(p.x-10,p.y-15,20*clamp(dmg,0,1),2.5); }
+  // ammo bar (amber) under the icon
+  if(def.ammo){ const af=clamp(d.ammo/d.maxammo,0,1);
+    cx.fillStyle="#2a2a2a"; cx.fillRect(p.x-10,p.y+12,20,2.5);
+    cx.fillStyle=dry?"#ff5a5a":(af<0.25?"#ff8a3c":"#ffc34d"); cx.fillRect(p.x-10,p.y+12,20*af,2.5); }
+  cx.textBaseline="alphabetic";
+}
+
+/* ============================================================
+   HUD
+   ============================================================ */
+function updateHUD(){
+  document.getElementById("s-money").textContent="$"+Math.floor(S.cash);
+  document.getElementById("s-saved").textContent=S.saved;
+  document.getElementById("s-lost").textContent=S.lost;
+  document.getElementById("s-zom").textContent=zombies.length;
+  document.getElementById("s-wave").textContent=S.wave+"/"+CFG.waves;
+  const wb=document.getElementById("b-wave");
+  wb.disabled = S.phase!=="planning";
+  wb.textContent = S.phase==="loading" ? "⏳ Loading…"
+    : S.waveActive ? "⚔ Wave "+S.wave+"…"
+    : (S.wave>0 ? "▶ Next Wave" : "▶ Start Wave");
+  const sb=document.getElementById("b-sell");
+  if(S.selUnit){ sb.textContent="💲 Sell this ($"+sellValue(S.selUnit)+")"; sb.classList.add("primary"); }
+  else if(!S.sellMode){ sb.textContent="💲 Sell: off"; sb.classList.remove("primary"); }
+  refreshDock();
+}
+function updateBanner(){
+  const b=document.getElementById("banner");
+  if(b.dataset.flash==="1") return;
+  if(S.phase==="planning"){
+    b.innerHTML = S.wave===0
+      ? "🧟 Outbreak imminent — <b>build your defenses</b>, then Start Wave"
+      : "✅ Wave "+S.wave+" cleared — reinforce, then <b>Next Wave</b>";
+  } else if(S.phase==="wave"){
+    b.innerHTML="⚔ <b>Wave "+S.wave+"</b> — contain the horde!";
+  } else b.innerHTML="";
+}
+
+/* ---------- boot ---------- */
+updateBanner();
+document.getElementById("banner").textContent="Pick a city to begin ↓";
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
